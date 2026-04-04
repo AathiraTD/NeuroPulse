@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "fwcd.kotlin",
+    "vscjava.vscode-java-pack",
+    "vscjava.vscode-gradle",
+    "diemasmichiels.emulate",
+    "humao.rest-client",
+    "eamodio.gitlens",
+    "usernamehw.errorlens",
+    "gruntfuggly.todo-tree"
+  ],
+  "unwantedRecommendations": []
+}

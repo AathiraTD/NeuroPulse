@@ -1,0 +1,58 @@
+# ============================================================
+# NeuroPulse — .gitignore
+# ============================================================
+
+# ── Secrets & local config (NEVER commit these) ─────────────
+local.properties
+.env
+google-services.json
+*.keystore
+*.jks
+keystore.properties
+
+# ── Android build outputs ────────────────────────────────────
+/build/
+app/build/
+wear/build/
+**/build/
+
+# ── Gradle ──────────────────────────────────────────────────
+.gradle/
+**/.gradle/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# ── IDE — Android Studio / IntelliJ ─────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ── VS Code — machine-specific workspace settings ────────────
+# extensions.json is committed (shared recommendations)
+# settings.json is gitignored (contains machine-specific JDK path)
+.vscode/settings.json
+
+# ── Android emulator ─────────────────────────────────────────
+*.avd/
+
+# ── OS generated files ───────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── Kotlin / Java compiled output ────────────────────────────
+*.class
+*.dex
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log

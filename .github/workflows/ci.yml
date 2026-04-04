@@ -1,0 +1,73 @@
+name: CI
+
+# Runs on every push and every PR targeting main.
+# Checks: build (debug) → lint → unit tests.
+# Instrumented tests (connectedAndroidTest) are Phase 3+ — emulator not set up here.
+
+on:
+  push:
+    branches: [ main, master, develop, 'phase/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build · Lint · Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── JDK ───────────────────────────────────────────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle         # setup-java built-in Gradle cache — faster than manual
+
+      # ── Gradle wrapper permissions ────────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # ── Secrets → local.properties ────────────────────────────────────────────
+      # Secrets are set in GitHub → Settings → Secrets and variables → Actions.
+      # See README.md "GitHub Secrets setup" for the list of required keys.
+      # ANDROID_HOME is pre-set on ubuntu-latest GitHub runners.
+      - name: Inject secrets into local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME"                              >> local.properties
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"       >> local.properties
+          echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}" >> local.properties
+          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}"   >> local.properties
+          echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"     >> local.properties
+
+      # ── Build ─────────────────────────────────────────────────────────────────
+      - name: Build debug (app + wear)
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+      # ── Lint ──────────────────────────────────────────────────────────────────
+      - name: Lint (app + wear)
+        run: ./gradlew lint --no-daemon
+
+      - name: Upload lint reports
+        if: always()       # upload even if lint found issues, so we can review them
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: '**/build/reports/lint-results*.html'
+          if-no-files-found: ignore
+
+      # ── Unit tests ────────────────────────────────────────────────────────────
+      - name: Unit tests (app + wear)
+        run: ./gradlew test --no-daemon
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/build/test-results/**/*.xml'
+          if-no-files-found: ignore

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Wear OS hardware feature declaration — required for Play Store Wear OS filtering -->
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <!-- Notifications — receives briefing delivery from phone (Phase 5) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <!--
+            Wear OS requires this library declaration for watch hardware access.
+            android:required="true" means the app will not install on non-watch devices.
+        -->
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="true" />
+
+        <!--
+            Placeholder WearActivity — replaced with full tile/notification setup in Phase 5.
+            WearApplication.kt (@HiltAndroidApp) is also Phase 5.
+        -->
+        <activity
+            android:name=".WearActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Internet — Gemini Flash API calls (anonymised prompts only, ADR-003) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Notifications — required for Wear OS notification channel delivery (Phase 5) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Calendar — read-only, for UC2 pre-event briefings (Phase 2) -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
+    <!--
+        Health Connect permissions — granted at runtime in Phase 3.
+        Declared here so the system recognises this app as a Health Connect client.
+        See HealthConnectFacade for runtime request logic.
+    -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP_SESSION" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+
+    <application
+        android:name=".NeuroPulseApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NeuroPulse">
+
+        <!--
+            Placeholder MainActivity — replaced with full Compose NavGraph in Phase 1.
+            Hilt @AndroidEntryPoint is already declared on the stub class.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
