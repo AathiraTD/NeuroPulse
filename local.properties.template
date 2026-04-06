@@ -1,0 +1,15 @@
+# NeuroPulse — local.properties template
+# Copy this file to local.properties and fill in your values.
+# local.properties is gitignored — your keys will never be committed.
+
+# Android SDK path (Android Studio sets this automatically on first open)
+sdk.dir=C\:\\Users\\<YOUR_USERNAME>\\AppData\\Local\\Android\\Sdk
+
+# Firebase Web Client ID
+# Firebase Console → Authentication → Sign-in method → Google → Web SDK configuration → Web client ID
+# Leave empty to use SKIP_AUTH=true in debug builds (no Firebase needed)
+FIREBASE_WEB_CLIENT_ID=
+
+# Gemini API key (https://aistudio.google.com/apikey)
+# Not needed until Phase 4 (AI pipeline) — leave empty for now
+GEMINI_API_KEY=

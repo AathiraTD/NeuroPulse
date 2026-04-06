@@ -62,54 +62,100 @@ NeuroPulse - Mobile App/
 
 | Tool | Version | Notes |
 |---|---|---|
-| JDK | 21 (Temurin) | Portable install at `C:\Users\<you>\.jdks\jdk-21.x.x+x\` |
-| Android SDK | API 34–35 | Install via `sdkmanager` (Phase 3) |
-| VS Code | Latest | See extensions below |
+| Android Studio | **Panda 3 (2025.3.3)** | Download from [developer.android.com/studio](https://developer.android.com/studio) |
+| Claude Code extension | Latest | Install from Android Studio → Settings → Plugins → search "Claude Code" |
+| Git | Any recent version | [git-scm.com](https://git-scm.com) |
+
+**You do NOT need to install separately:** JDK (bundled with Android Studio), Android SDK
+(auto-downloaded on first project open), Gradle (bundled in the project as `gradlew`).
 
 ### 2 — Clone and open
 
 ```bash
-git clone <repo-url> "NeuroPulse - Mobile App"
-cd "NeuroPulse - Mobile App"
+git clone https://github.com/AathiraTD/NeuroPulse.git
+cd NeuroPulse
 ```
 
-Open in VS Code — it will prompt to install recommended extensions
-(from `.vscode/extensions.json`). Accept all.
+Open in Android Studio: **File → Open** → select the `NeuroPulse` folder.
 
-### 3 — Generate Gradle wrapper (first time only)
+On first open, Android Studio will:
+- Download the Android SDK (API 35) if missing
+- Create `local.properties` with your SDK path automatically
+- Run Gradle sync (may take 2–3 minutes the first time)
 
-```bash
-gradle wrapper --gradle-version 8.11.1
+### 3 — Quick start (no Firebase needed)
+
+The app runs in debug mode with `SKIP_AUTH=true` — this bypasses Firebase Auth
+entirely and goes straight to the HOME screen. No API keys or Firebase config
+required for this path.
+
+Just click the **green Play button** in the toolbar (after creating an emulator — see step 5).
+
+### 4 — Firebase setup (needed for auth flow)
+
+Skip this step if you just want to see the HOME screen.
+Do this when you want to test the full login → persona selection → home flow.
+
+**A) Create a Firebase project**
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Click **"Add project"** → name it `NeuroPulse` → create
+3. Go to **Authentication → Sign-in method** → enable:
+   - Email/Password
+   - Google
+   - Anonymous
+4. Go to **Project Settings → Your apps** → click **Android icon**
+   - Package name: `com.neuropulse`
+   - Register app → download `google-services.json`
+
+**B) Place `google-services.json`**
+
+Copy the downloaded file to:
+```
+NeuroPulse/app/google-services.json
 ```
 
-### 4 — Create `local.properties`
+**C) Add keys to `local.properties`**
 
-Copy the template and fill in your keys:
-
+Open `local.properties` (Android Studio created this in step 2) and add:
 ```properties
-sdk.dir=C\:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
-GEMINI_API_KEY=<your key from aistudio.google.com/apikey>
-FIREBASE_WEB_API_KEY=<from Firebase console>
-FIREBASE_PROJECT_ID=<from Firebase console>
-FIREBASE_APP_ID=<from Firebase console>
+FIREBASE_WEB_CLIENT_ID=<your-web-client-id>.apps.googleusercontent.com
+GEMINI_API_KEY=
 ```
 
-### 5 — Download Atkinson Hyperlegible fonts
+To find your Web Client ID:
+Firebase Console → Authentication → Sign-in method → Google → **Web SDK configuration** → Web client ID.
 
-1. Download from [brailleinstitute.org/freefont](https://brailleinstitute.org/freefont)
-2. Rename and place in `app/src/main/res/font/`:
-   - `atkinson_hyperlegible_regular.ttf`
-   - `atkinson_hyperlegible_bold.ttf`
-   - `atkinson_hyperlegible_italic.ttf`
-   - `atkinson_hyperlegible_bold_italic.ttf`
+The `GEMINI_API_KEY` can stay empty until Phase 4 (AI pipeline).
 
-See `app/src/main/res/font/FONTS_REQUIRED.md` for full instructions.
+A template file `local.properties.template` is included in the repo for reference.
 
-### 6 — Build
+**D) Enable the auth flow**
 
-```bash
-./gradlew assembleDebug
+In `app/build.gradle.kts`, change the debug build type:
+```kotlin
+buildConfigField("Boolean", "SKIP_AUTH", "false")
 ```
+
+Rebuild and run — you'll now see the full splash → login → persona selection flow.
+
+### 5 — Emulator setup
+
+1. In Android Studio, click **Device Manager** (phone icon in the right toolbar)
+2. Click **"Create Virtual Device"**
+3. Select **Pixel 6** → click Next
+4. Select **API 35** (click Download if not installed) → click Next
+5. Click **Finish**
+6. Click the **Play** icon next to your new device to launch it
+
+For **Wear OS** (Phase 5 only):
+- Same steps, but select "Wear OS" category and a round watch device
+
+### 6 — Build and run
+
+- **Run on emulator:** Click the green **Play** button in the toolbar
+- **Build only:** `./gradlew assembleDebug`
+- **Run tests:** `./gradlew test`
 
 ---
 
@@ -122,34 +168,6 @@ See `app/src/main/res/font/FONTS_REQUIRED.md` for full instructions.
 ./gradlew connectedAndroidTest   # Instrumented tests (needs running emulator)
 ./gradlew lint                   # Lint — reports in build/reports/
 adb logcat -s NeuroPulse:V       # Filtered Logcat
-```
-
----
-
-## Emulator setup (Phase 3 — Android SDK required)
-
-```bash
-# Install SDK packages
-sdkmanager "platform-tools"
-sdkmanager "platforms;android-34"
-sdkmanager "build-tools;34.0.0"
-sdkmanager "system-images;android-34;google_apis;x86_64"
-sdkmanager "system-images;android-34;android-wear;x86_64"
-
-# Create AVDs
-avdmanager create avd -n NeuroPulse_AVD \
-  -k "system-images;android-34;google_apis;x86_64"
-avdmanager create avd -n NeuroPulse_Wear \
-  -k "system-images;android-34;android-wear;x86_64" \
-  --device "wearos_small_round"
-
-# Launch
-emulator -avd NeuroPulse_AVD &
-emulator -avd NeuroPulse_Wear &
-
-# Pair Wear OS to phone emulator over ADB
-adb -s emulator-5554 forward tcp:5601 tcp:5601
-adb -s emulator-5556 connect localhost:5601
 ```
 
 ---

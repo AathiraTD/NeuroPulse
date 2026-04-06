@@ -241,3 +241,4 @@
 | 3 Apr 2026 | Aathira T Dev | Initial tracker created | Baseline established |
 | 5 Apr 2026 | Aathira T Dev | Phase 1b auth & onboarding committed | Auth, onboarding, nav graph, biometric lock, persona selection |
 | 6 Apr 2026 | Claude (code review) | Code review fixes applied (12 issues) | Dependency fix, architecture violation, privacy, UX compliance, decomposition |
+| 7 Apr 2026 | Claude | Setup guide rewritten for Android Studio Panda 3 | README.md, local.properties.template, google-services plugin, projectplan.md updated |

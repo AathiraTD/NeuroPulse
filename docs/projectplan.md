@@ -6,18 +6,26 @@
 
 ---
 
-## Development Approach — Hybrid VS Code → Android Studio
+## Development Environment
 
-| Phase | Primary Tool | Android Studio needed? |
-|---|---|---|
-| 0 — Scaffold & standards | VS Code + SDK CLI | No |
-| 1 — Auth & onboarding | VS Code | No |
-| 2 — Room schema & calendar | VS Code | No |
-| 3 — Health Connect & physio | Install Android Studio here | Yes — Health Connect emulator APK |
-| 4 — AI / RAG / Gemini | VS Code | No — Gemini API via host internet |
-| 5 — Triggers & Wear OS | Android Studio preferred | Recommended — dual emulator |
-| 6 — Polish, compliance & release | Android Studio | Required |
-| 7 — Demo preparation | Either | PowerPoint + demo script |
+**Recommended:** Android Studio Panda 3 (2025.3.3) with Claude Code JetBrains extension.
+
+Android Studio provides Compose Previews, integrated emulator management, Layout Inspector,
+and the debugger — all needed for ADHD UX validation. See `README.md` for full setup instructions.
+
+VS Code can also be used with the CLI emulator (see extensions below for reference),
+but lacks Compose Preview support and visual debugging.
+
+| Phase | Key tool requirement |
+|---|---|
+| 0 — Scaffold & standards | Any editor (VS Code or Android Studio) |
+| 1 — Auth & onboarding | Android Studio recommended (Compose previews) |
+| 2 — Room schema & calendar | Android Studio recommended (Database Inspector) |
+| 3 — Health Connect & physio | Android Studio required (Health Connect emulator APK) |
+| 4 — AI / RAG / Gemini | Any editor (Gemini API via host internet) |
+| 5 — Triggers & Wear OS | Android Studio required (dual emulator) |
+| 6 — Polish, compliance & release | Android Studio required (signed APK, profiler) |
+| 7 — Demo preparation | Either (PowerPoint + demo script) |
 
 ---
 
