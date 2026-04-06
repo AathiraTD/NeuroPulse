@@ -10,6 +10,454 @@ Format: `## E-XXX — Title` with Date, Phase, Symptom, Root Cause, Fix, Learnin
 ---
 
 <!-- Append entries below this line in format E-XXX -->
+
+---
+
+## E-001 — Google Sign-In button does nothing on tap
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/navigation/NeuroPulseNavGraph.kt:141`](../app/src/main/kotlin/com/neuropulse/ui/navigation/NeuroPulseNavGraph.kt#L141)
+
+**Symptom:** User taps "Continue with Google" — no loading state, no system prompt, no error. Silent no-op.
+
+**Root cause:** The CredentialManager intent that retrieves a Google `idToken` from the device was never wired. The Firebase backend (`FirebaseAuthRepositoryImpl.signInWithGoogle`) and the ViewModel handler (`LoginViewModel.onGoogleSignIn`) are both complete and correct. Only the UI-side token retrieval step is missing.
+
+**Before (current — broken):**
+```kotlin
+// NeuroPulseNavGraph.kt:141
+onGoogleSignIn = { /* TODO Phase 1b: launch One-Tap, pass idToken to viewModel */ },
+```
+
+**After (Phase 1b fix):**
+```kotlin
+// NeuroPulseNavGraph.kt — inside LOGIN composable block
+val context = LocalContext.current
+val scope = rememberCoroutineScope()
+val credentialManager = remember { CredentialManager.create(context) }
+
+onGoogleSignIn = {
+    scope.launch {
+        val request = GetCredentialRequest(
+            listOf(GetGoogleIdOption.Builder()
+                .setServerClientId(BuildConfig.FIREBASE_WEB_CLIENT_ID)
+                .build())
+        )
+        runCatching { credentialManager.getCredential(context, request) }
+            .onSuccess { result ->
+                val idToken = (result.credential as GoogleIdTokenCredential).idToken
+                viewModel.onGoogleSignIn(idToken)
+            }
+            .onFailure { viewModel.onGoogleSignIn("") } // surfaces error state
+    }
+},
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/onboarding/LoginScreen.kt:161-202`](../app/src/main/kotlin/com/neuropulse/ui/onboarding/LoginScreen.kt#L161-L202), [`domain/repository/AuthRepository.kt`](../app/src/main/kotlin/com/neuropulse/domain/repository/AuthRepository.kt)
+
+**Symptom:** Email user enters wrong password, sees the amber error message, and has no recovery path. No "Forgot your password?" link exists anywhere in the UI or codebase. The user is completely stuck.
+
+**Root cause:** `sendPasswordResetEmail()` was never added to `AuthRepository` or `FirebaseAuthRepositoryImpl`. No reset link was added to `LoginScreen` alongside the password field.
+
+**Before (current — method missing):**
+```kotlin
+// AuthRepository.kt — interface ends here, no reset method
+interface AuthRepository {
+    suspend fun signInWithGoogle(idToken: String): Result<String>
+    suspend fun signInWithEmail(email: String, password: String): Result<String>
+    suspend fun createAccountWithEmail(email: String, password: String): Result<String>
+    suspend fun isTokenValid(): Boolean
+    suspend fun signOut()
+    fun currentUser(): Any?
+    // sendPasswordResetEmail() — MISSING
+}
+```
+
+**After (Phase 1b fix):**
+```kotlin
+// AuthRepository.kt — add method
+suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+
+// FirebaseAuthRepositoryImpl.kt — implement
+override suspend fun sendPasswordResetEmail(email: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+        runCatching { auth.sendPasswordResetEmail(email).await() }
+    }
+
+// LoginViewModel.kt — add state and callbacks
+private val _showForgotPasswordDialog = MutableStateFlow(false)
+val showForgotPasswordDialog: StateFlow<Boolean> = _showForgotPasswordDialog.asStateFlow()
+
+fun onForgotPasswordTap() {
+    _showForgotPasswordDialog.value = true
+}
+
+fun onForgotPasswordSubmit(email: String) {
+    viewModelScope.launch {
+        _forgotPasswordState.value = ForgotPasswordState.Loading
+        authRepository.sendPasswordResetEmail(email)
+            .onSuccess {
+                _forgotPasswordState.value = ForgotPasswordState.Success
+                kotlinx.coroutines.delay(2000)
+                onForgotPasswordDialogDismiss()
+            }
+            .onFailure {
+                _forgotPasswordState.value = ForgotPasswordState.Error(
+                    "Reset email failed — check your internet and try again"
+                )
+            }
+    }
+}
+
+// LoginScreen.kt — "Forgot password?" link inside password AnimatedVisibility
+TextButton(
+    onClick = onForgotPasswordTap,
+    modifier = Modifier.align(Alignment.End),
+) {
+    Text(
+        text  = "Forgot your password?",
+        style = MaterialTheme.typography.bodySmall,
+        color = NeuroPulseTheme.colors.primary,
+    )
+}
+
+// LoginScreen.kt — ForgotPasswordDialog composable (new)
+@Composable
+fun ForgotPasswordDialog(
+    uiState: ForgotPasswordState,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var email by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reset your password") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (uiState) {
+                    ForgotPasswordState.Success ->
+                        Text("✓ Reset link sent! Check your email.")
+                    is ForgotPasswordState.Error ->
+                        Text(uiState.message, color = colors.signal)
+                    else -> {}
+                }
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email address") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    enabled = uiState !is ForgotPasswordState.Loading,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSubmit(email) }, enabled = email.isNotBlank()) {
+                Text("Send reset link")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+// NeuroPulseNavGraph.kt — show dialog in LOGIN composable
+if (showForgotPasswordDialog) {
+    ForgotPasswordDialog(
+        uiState  = forgotPasswordState,
+        onSubmit = viewModel::onForgotPasswordSubmit,
+        onDismiss = viewModel::onForgotPasswordDialogDismiss,
+    )
+}
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-003 — New users bypass persona selection after first sign-in
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/navigation/NeuroPulseNavGraph.kt:188-192`](../app/src/main/kotlin/com/neuropulse/ui/navigation/NeuroPulseNavGraph.kt#L188-L192)
+
+**Symptom:** First-time user completes Google or email sign-in and is routed directly to HomeScreen (Phase 2 stub). PersonaSelectionScreen is never shown. `isOnboardingComplete` remains `false` in DataStore indefinitely.
+
+**Root cause:** `resolvePostLoginDestination()` is hardcoded to return `NavDestinations.HOME`. The `// Phase 1b` comment in the function body acknowledges this is a known gap.
+
+**Before (current — always HOME):**
+```kotlin
+// NeuroPulseNavGraph.kt:188
+private suspend fun resolvePostLoginDestination(viewModel: LoginViewModel): String {
+    // Phase 1b: inject UserPreferencesRepository here to check onboarding state.
+    // For now, default to HOME — PersonaSelectionScreen is reached via sign-up link.
+    return NavDestinations.HOME
+}
+```
+
+**After (Phase 1b fix — implemented):**
+```kotlin
+// LoginViewModel.kt — exposes check via existing userPreferencesRepository
+suspend fun isOnboardingComplete(): Boolean =
+    userPreferencesRepository.isOnboardingComplete()
+
+// NeuroPulseNavGraph.kt — resolvePostLoginDestination delegates to ViewModel
+private suspend fun resolvePostLoginDestination(viewModel: LoginViewModel): String =
+    if (viewModel.isOnboardingComplete()) NavDestinations.HOME else NavDestinations.PERSONA_SELECT
+
+// NeuroPulseNavGraph.kt — PersonaSelectionViewModel saves selection + marks complete
+personaViewModel.selectPersona(persona) {
+    navController.navigate(NavDestinations.HOME) {
+        popUpTo(NavDestinations.PERSONA_SELECT) { inclusive = true }
+    }
+}
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-004 — No network awareness — silent 10-second timeout before auth error
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/onboarding/LoginViewModel.kt:83-88`](../app/src/main/kotlin/com/neuropulse/ui/onboarding/LoginViewModel.kt#L83-L88)
+
+**Symptom:** User with no internet connection taps "Continue with Google" or "Sign in". A spinner appears immediately and runs for approximately 10 seconds before Firebase times out and surfaces the generic error: "Sign-in failed — check your connection and try again". No upfront indication that connectivity is required. For an ADHD user, 10 seconds of unexplained spinner followed by a vague error is a high-anxiety, high-abandonment pattern.
+
+**Root cause:** No `ConnectivityManager` or network state check exists anywhere in the auth flow. The Firebase `IOException` from a timeout is caught by `runCatching` and falls through to the generic fallback string in `mapFirebaseError`.
+
+**Before (current — no network check):**
+```kotlin
+// LoginViewModel.kt:83
+fun onGoogleSignIn(idToken: String) {
+    viewModelScope.launch {
+        _uiState.value = LoginUiState.Loading   // spinner starts immediately, even offline
+        authRepository.signInWithGoogle(idToken) // hangs ~10s with no connection
+            .onSuccess { uid -> handleAuthSuccess(uid) }
+            .onFailure { handleAuthFailure(it, currentEmail(), currentPassword()) }
+    }
+}
+```
+
+**After (Phase 1b fix — implemented):**
+```kotlin
+// domain/repository/NetworkMonitor.kt (new — pure Kotlin interface, no Android imports)
+interface NetworkMonitor {
+    suspend fun isOnline(): Boolean
+}
+
+// data/network/ConnectivityNetworkMonitor.kt (new — Android implementation)
+override suspend fun isOnline(): Boolean {
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NET_CAPABILITY_INTERNET) &&
+           capabilities.hasCapability(NET_CAPABILITY_VALIDATED)
+}
+
+// LoginViewModel.kt — guard all three auth methods
+fun onGoogleSignIn(idToken: String) {
+    viewModelScope.launch {
+        if (!networkMonitor.isOnline()) { handleOffline(); return@launch }
+        _uiState.value = LoginUiState.Loading
+        authRepository.signInWithGoogle(idToken)
+            .onSuccess { uid -> handleAuthSuccess(uid) }
+            .onFailure { handleAuthFailure(it, currentEmail(), currentPassword()) }
+    }
+}
+
+private fun handleOffline() {
+    _uiState.value = LoginUiState.Error(
+        userMessage = "No internet connection — connect to Wi-Fi or mobile data to sign in",
+        email       = currentEmail(),
+        password    = currentPassword(),
+    )
+}
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-005 — No anonymous/guest mode — account required before seeing any content
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/onboarding/LoginScreen.kt:222-233`](../app/src/main/kotlin/com/neuropulse/ui/onboarding/LoginScreen.kt#L222-L233), [`domain/repository/AuthRepository.kt`](../app/src/main/kotlin/com/neuropulse/domain/repository/AuthRepository.kt)
+
+**Symptom:** First-time user sees the login screen with no path to explore the app without creating an account. This is a hard abandonment point — ADHD users who encounter mandatory registration before experiencing value frequently close the app permanently.
+
+**Root cause:** `signInAnonymously()` not added to `AuthRepository`. No anonymous path in the NavGraph. No guest option on `LoginScreen`.
+
+**Before (current — account required):**
+```kotlin
+// LoginScreen.kt:222 — only a sign-up link, no guest path
+TextButton(onClick = onNavigateToSignUp) {
+    Text("First time here? Set up your account")
+}
+// Nothing below this. User must create an account to proceed.
+```
+
+**After (Phase 1b fix):**
+```kotlin
+// LoginScreen.kt — add below the sign-up link
+TextButton(onClick = onContinueAsGuest) {
+    Text(
+        text  = "Try without signing in",
+        style = MaterialTheme.typography.labelMedium,
+        color = NeuroPulseTheme.colors.onSurfaceVariant,
+    )
+}
+
+// AuthRepository.kt — new interface method
+suspend fun signInAnonymously(): Result<String>
+
+// FirebaseAuthRepositoryImpl.kt
+override suspend fun signInAnonymously(): Result<String> =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val result = auth.signInAnonymously().await()
+            result.user?.uid ?: error("Anonymous sign-in returned null user")
+        }
+    }
+// Anonymous UID is NOT saved to DataStore — session ends on app kill.
+// HomeScreen shows a persistent banner: "Your progress won't be saved until you create an account."
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-006 — Biometric permissions declared in manifest but nothing wired
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`AndroidManifest.xml:8-11`](../app/src/main/AndroidManifest.xml#L8-L11), [`domain/repository/UserPreferencesRepository.kt`](../app/src/main/kotlin/com/neuropulse/domain/repository/UserPreferencesRepository.kt)
+
+**Symptom:** `USE_BIOMETRIC` and `USE_FINGERPRINT` are declared in the manifest as forward-declarations. No `BiometricPrompt` is shown at any point. No `biometric_enabled` or `biometric_prompt_shown` DataStore keys exist. No `BIOMETRIC_LOCK` NavGraph destination. No popup on Home first visit. The permissions are dead declarations.
+
+**Root cause:** Biometric was intentionally deferred from Phase 1 — permissions added as forward-declarations only to avoid a second manifest edit later.
+
+**Before (current — permissions only):**
+```xml
+<!-- AndroidManifest.xml — permissions declared, nothing wired behind them -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC" />
+<uses-permission android:name="android.permission.USE_FINGERPRINT" />
+```
+
+**After (Phase 1b fix — multiple additions required):**
+```kotlin
+// 1. UserPreferencesDataStoreImpl.kt — new DataStore keys
+val KEY_BIOMETRIC_ENABLED      = booleanPreferencesKey("biometric_enabled")
+val KEY_BIOMETRIC_PROMPT_SHOWN = booleanPreferencesKey("biometric_prompt_shown")
+
+// 2. NavDestinations.kt — new route
+const val BIOMETRIC_LOCK   = "biometric_lock"
+const val PRIVACY_CONSENT  = "privacy_consent"  // also missing
+
+// 3. AuthGateViewModel.resolveStartDestination() — new routing branch
+val biometricEnabled = userPreferencesRepository.isBiometricEnabled()
+return when {
+    !tokenValid      -> NavDestinations.LOGIN
+    !onboarded       -> NavDestinations.PERSONA_SELECT
+    biometricEnabled -> NavDestinations.BIOMETRIC_LOCK   // new
+    else             -> NavDestinations.HOME
+}
+
+// 4. BiometricLockScreen — new composable
+// Shows BiometricPrompt immediately on composition.
+// On success → navigate HOME. On cancel → show "Use a different sign-in method" fallback.
+
+// 5. HomeScreen — one-time BiometricSetupDialog (DD-010)
+if (!hasShownBiometricPrompt) {
+    BiometricSetupDialog(
+        onEnable  = { viewModel.enableBiometric() },
+        onDismiss = { viewModel.dismissBiometricPrompt() },
+    )
+}
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-007 — Logo asset saved with double file extension (fixed)
+
+**Date:** 2026-04 | **Phase:** 1 — Asset setup
+**File:** `app/src/main/res/drawable/`
+
+**Symptom:** Logo saved as `ic_neuropulse_logo.png.png`. AAPT2 rejects resource file names containing dots — the build would fail at the resource compilation step.
+
+**Root cause:** The file was already named with a `.png` extension before being copied into the drawable folder. The operating system appended a second `.png` extension on copy.
+
+**Before (broken):**
+```
+app/src/main/res/drawable/
+  ic_neuropulse_logo.png.png   ← dot in resource name, AAPT2 rejects this
+```
+
+**After (fixed):**
+```
+app/src/main/res/drawable/
+  ic_neuropulse_logo.png       ← R.drawable.ic_neuropulse_logo resolves correctly
+```
+
+Fix applied via: `mv ic_neuropulse_logo.png.png ic_neuropulse_logo.png`
+
+**Status:** Fixed (2026-04)
+
+**Learning:** Always verify the exact filename after dropping assets into `res/drawable/`. AAPT2 error messages for invalid resource names are not always clearly linked to the dot-in-filename cause — the resource compiler may report a generic merge failure instead.
+
+---
+
+## E-008 — PersonaSelectionScreen is a stub — no questionnaire UI implemented
+
+**Date:** 2026-04 | **Phase:** 1 — Auth & Onboarding
+**File:** [`ui/onboarding/PersonaSelectionScreen.kt:58-65`](../app/src/main/kotlin/com/neuropulse/ui/onboarding/PersonaSelectionScreen.kt#L58-L65)
+
+**Symptom:** User navigated to PersonaSelectionScreen (via "First time here? Set up your account") sees only the text "Persona selection coming in Phase 1b" on a blank surface. No questions, no selection UI, no way to proceed — the user is stranded on a placeholder screen.
+
+**Root cause:** Intentional Phase 1 stub. The questionnaire UI, `PersonaSelectionViewModel`, and DataStore write (`setUserPersona`, `setOnboardingComplete`) were all deferred to Phase 1b. The nav route exists so the skeleton compiles, not so the feature works.
+
+**Before (current — stub only):**
+```kotlin
+// PersonaSelectionScreen.kt:58
+Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+    Text(
+        text      = "Persona selection\ncoming in Phase 1b",
+        style     = MaterialTheme.typography.bodyLarge,
+        color     = NeuroPulseTheme.colors.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+}
+```
+
+**After (Phase 1b fix — two-card scenario questionnaire):**
+```kotlin
+// PersonaSelectionScreen.kt — replace Box stub with:
+// Two mutually exclusive selection cards (satisfies one-CTA-per-screen via card selection, ADR-005)
+PersonaCard(
+    title       = "I often lose track of time",
+    description = "Events sneak up on me. I need earlier reminders and time anchors.",
+    selected    = selectedPersona == UserPreferences.PERSONA_MARCUS,
+    onClick     = { viewModel.selectPersona(UserPreferences.PERSONA_MARCUS) },
+)
+PersonaCard(
+    title       = "I get pulled into tasks and can't stop",
+    description = "Once I start something, hours disappear. I need a pattern interrupt.",
+    selected    = selectedPersona == UserPreferences.PERSONA_ZOE,
+    onClick     = { viewModel.selectPersona(UserPreferences.PERSONA_ZOE) },
+)
+// Single confirm CTA — enabled only after a card is selected
+Button(
+    onClick  = viewModel::confirmPersona, // saves persona + setOnboardingComplete() → PrivacyConsent
+    enabled  = selectedPersona != null,
+    modifier = Modifier.fillMaxWidth().height(spacing.touchTarget),
+) {
+    Text("This sounds like me")
+}
+// PersonaSelectionViewModel required (new file)
+```
+
+**Status:** Fixed (Phase 1b, 2026-04)
 <!-- Example structure:
 
 ## E-001 — [Short bug title]

@@ -4,17 +4,28 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import com.neuropulse.ui.navigation.AuthGateViewModel
+import com.neuropulse.ui.navigation.NeuroPulseNavGraph
 import com.neuropulse.ui.theme.NeuroPulseTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * Placeholder main activity — replaced with full Compose NavGraph in Phase 1.
+ * MainActivity — the single Activity for the entire NeuroPulse app.
  *
- * Hilt @AndroidEntryPoint is established here so DI is wired from first launch.
- * NeuroPulseTheme wrapper ensures the correct Material3 theme is applied
- * even before the NavGraph is implemented.
+ * Hosts the Compose NavGraph. The [AuthGateViewModel] resolves the correct start
+ * destination asynchronously (DataStore read + optional Firebase token check) before
+ * the NavGraph is composed — preventing any wrong-screen flash on app start.
  *
- * Phase 1: Replace setContent body with NeuroPulseNavGraph().
+ * While [AuthGateViewModel.startDestination] is null (check in-flight), a blank
+ * [NeuroPulseTheme] surface is shown. The check is fast enough (<50ms for DataStore
+ * reads) that this blank frame is imperceptible. On first launch the 2400ms splash
+ * animation conceals the auth check entirely.
+ *
+ * Phase 1: NavGraph with Splash + Login + PersonaSelect + Home stub.
+ * Phase 2+: NavGraph expanded with MorningPlanScreen, BriefingScreen, CaptureScreen.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -24,7 +35,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NeuroPulseTheme {
-                // Phase 1: NeuroPulseNavGraph() replaces this comment
+                val authGateViewModel: AuthGateViewModel = hiltViewModel()
+                val startDestination by authGateViewModel.startDestination
+                    .collectAsStateWithLifecycle()
+
+                // Compose NavGraph once start destination is resolved.
+                // The null guard prevents flickering to the wrong screen while the check runs.
+                startDestination?.let { destination ->
+                    NeuroPulseNavGraph(startDestination = destination)
+                }
             }
         }
     }

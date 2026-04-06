@@ -14,6 +14,8 @@ navigation             = "2.8.4"
 workmanager            = "2.10.0"
 coroutines             = "1.9.0"
 healthConnect          = "1.1.0-alpha10"
+credentials            = "1.2.2"
+biometric              = "1.1.0"
 wearCompose            = "1.3.1"
 wearTiles              = "1.4.0"
 wearInput              = "1.2.0"
@@ -67,6 +69,10 @@ kotlinx-coroutines-test    = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Health Connect
 health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
+
+# Google Identity (One-Tap & CredentialManager)
+credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+biometric   = { group = "androidx.biometric",   name = "biometric",   version.ref = "biometric"   }
 
 # Wear OS
 wear-compose-foundation  = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }

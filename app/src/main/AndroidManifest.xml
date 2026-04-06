@@ -4,11 +4,23 @@
     <!-- Internet — Gemini Flash API calls (anonymised prompts only, ADR-003) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Network state — instant offline check before auth calls to avoid 10s spinner (E-004) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Notifications — required for Wear OS notification channel delivery (Phase 5) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Calendar — read-only, for UC2 pre-event briefings (Phase 2) -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+
+    <!--
+        Biometric authentication — for returning users on re-launch.
+        USE_BIOMETRIC covers both fingerprint and face unlock (API 28+).
+        USE_FINGERPRINT retained for minSdk=26/27 compatibility.
+        Reduces password recall burden for ADHD users on shared devices (DD-007).
+    -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <!--
         Health Connect permissions — granted at runtime in Phase 3.

@@ -26,6 +26,11 @@ android {
             "GEMINI_API_KEY",
             "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\""
         )
+        buildConfigField(
+            "String",
+            "FIREBASE_WEB_CLIENT_ID",
+            "\"${project.findProperty("FIREBASE_WEB_CLIENT_ID") ?: ""}\""
+        )
     }
 
     buildTypes {
@@ -100,6 +105,12 @@ dependencies {
 
     // Health Connect
     implementation(libs.health.connect)
+
+    // Google Identity (One-Tap & CredentialManager)
+    implementation(libs.credentials)
+
+    // Biometric (fingerprint / face unlock — DD-010)
+    implementation(libs.biometric)
 
     // Firebase
     implementation(platform(libs.firebase.bom))

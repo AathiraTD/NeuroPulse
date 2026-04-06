@@ -105,10 +105,35 @@ Example: upgrading from `PhoneDeliveryStrategy` (NotificationManager) to
 
 ---
 
+## 6 — Adding a new Auth provider (e.g. Apple Sign-In)
+
+Yahoo, Microsoft, and Apple are already implemented via the shared `signInWithOAuthProvider` method (Phase 1b, DD-012). To add another OAuth provider (e.g. GitHub, Twitter):
+
+**Touch these files:**
+
+| File | Change |
+|---|---|
+| `ui/onboarding/LoginScreen.kt` | Add `SsoButton(label = "Continue with GitHub", providerId = "github.com", ...)` |
+| This file | Update entry |
+
+**Do NOT touch:**
+- `AuthRepository.kt` — `signInWithOAuthProvider(activity, providerId)` is already provider-agnostic
+- `FirebaseAuthRepositoryImpl.kt` — `OAuthProvider.newBuilder(providerId)` handles any Firebase OAuth provider
+- `LoginViewModel.kt` — `onOAuthSignIn(activity, providerId)` is already provider-agnostic
+- `NeuroPulseNavGraph.kt` — `onOAuthSignIn` lambda already passes the activity reference
+- `UserPreferencesDataStoreImpl.kt` — UID storage is provider-agnostic
+- `DataModule.kt` — `AuthRepository` binding is unchanged
+
+**Special case — Apple Sign-In:** Already handled. `FirebaseAuthRepositoryImpl` detects `providerId == "apple.com"` and adds the required `email` + `name` scopes automatically.
+
+---
+
 ## Current extension-point implementations
 
 | Interface | PoC Implementation | Location |
 |---|---|---|
+| `AuthRepository` | `FirebaseAuthRepositoryImpl` | `data/auth/` — Phase 1 |
+| `UserPreferencesRepository` | `UserPreferencesDataStoreImpl` | `data/local/` — Phase 1 |
 | `BriefingStrategy` | `MorningPlanStrategy`, `PreEventStrategy`, `HyperfocusStrategy`, `StressGroundingStrategy` | `data/ai/strategy/` — Phase 4 |
 | `DeliveryStrategy` | `PhoneDeliveryStrategy` | `data/delivery/` — Phase 5 |
 | `ChatLanguageModel` | Gemini Flash via LangChain4j | `data/di/BriefingModule.kt` — Phase 4 |
