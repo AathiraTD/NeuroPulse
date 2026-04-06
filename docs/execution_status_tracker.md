@@ -2,7 +2,7 @@
 
 **Project:** NeuroPulse — A Neuroadaptive Companion for Adults Living with ADHD
 **Student:** Aathira T Dev (S21161041) | BCU CMP6213
-**Last Updated:** _(update this field whenever the tracker is edited)_
+**Last Updated:** 6 Apr 2026
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Phase | Phase Name | Planned Start | Planned End | Actual Start | Actual End | Status | % Complete | Comments |
 |-------|-----------|---------------|-------------|--------------|------------|--------|------------|----------|
-| 1 | Requirements Gathering and Design | 6 Apr 2026 | 17 Apr 2026 | | | Not Started | 0% | |
+| 1 | Requirements Gathering and Design | 6 Apr 2026 | 17 Apr 2026 | 3 Apr 2026 | | In Progress | 40% | Auth & onboarding (Phase 1b) complete; code review fixes applied 6 Apr |
 | 2 | Development | 20 Apr 2026 | 26 Jun 2026 | | | Not Started | 0% | |
 | 3 | Testing and Quality Assurance | 29 Jun 2026 | 17 Jul 2026 | | | Not Started | 0% | |
 | 4 | Deployment and Launch | 20 Jul 2026 | 31 Jul 2026 | | | Not Started | 0% | |
@@ -29,10 +29,10 @@
 | 1.3 | High-fidelity UI design — Android screens (Figma) | 13 Apr 2026 | 17 Apr 2026 | | | Not Started | |
 | 1.4 | High-fidelity UI design — Wear OS tiles (Figma) | 13 Apr 2026 | 17 Apr 2026 | | | Not Started | |
 | 1.5 | Room database schema freeze (6-table schema) | 6 Apr 2026 | 9 Apr 2026 | | | Not Started | |
-| 1.6 | API contract definition (Repository + UseCase interfaces) | 6 Apr 2026 | 9 Apr 2026 | | | Not Started | |
+| 1.6 | API contract definition (Repository + UseCase interfaces) | 6 Apr 2026 | 9 Apr 2026 | 3 Apr 2026 | 5 Apr 2026 | Complete | Auth, UserPreferences, NetworkMonitor interfaces committed (Phase 1b) |
 | 1.7 | Permission flow design (Health Connect, SCHEDULE_EXACT_ALARM) | 13 Apr 2026 | 15 Apr 2026 | | | Not Started | |
 | 1.8 | Risk register documentation | 14 Apr 2026 | 17 Apr 2026 | | | Not Started | |
-| 1.9 | Development environment setup | 6 Apr 2026 | 7 Apr 2026 | | | Not Started | |
+| 1.9 | Development environment setup | 6 Apr 2026 | 7 Apr 2026 | 3 Apr 2026 | 3 Apr 2026 | Complete | Phase 0 scaffold commit; CI pipeline green |
 
 ### Phase 1 Milestones
 
@@ -41,7 +41,7 @@
 | M1.1 | Signed-off acceptance criteria for UC1–UC5 | 10 Apr 2026 | | Not Started |
 | M1.2 | Figma prototype complete (Android + Wear OS) | 17 Apr 2026 | | Not Started |
 | M1.3 | Room schema frozen and migration v1 drafted | 10 Apr 2026 | | Not Started |
-| M1.4 | Repository interface contracts committed to VCS | 10 Apr 2026 | | Not Started |
+| M1.4 | Repository interface contracts committed to VCS | 10 Apr 2026 | 5 Apr 2026 | Complete |
 | M1.5 | Risk register baselined | 17 Apr 2026 | | Not Started |
 
 ---
@@ -224,7 +224,11 @@
 
 | Date | Phase | Issue / Blocker | Severity | Owner | Resolution | Resolved Date |
 |------|-------|----------------|----------|-------|------------|---------------|
-| | | | | | | |
+| 6 Apr 2026 | 1 | Missing google-id dependency — build fails on Google Sign-In | Critical | Claude | Added googleid:1.1.1 to version catalog + build.gradle | 6 Apr 2026 |
+| 6 Apr 2026 | 1 | Duplicate ForgotPasswordDialog with hardcoded colour | Critical | Claude | Deleted standalone file; LoginScreen.kt version uses theme tokens | 6 Apr 2026 |
+| 6 Apr 2026 | 1 | LoginViewModel imports data-layer concrete class | Critical | Claude | Replaced with simpleName-based error mapping (ADR-001 compliance) | 6 Apr 2026 |
+| 6 Apr 2026 | 1 | Raw email logged in FirebaseAuthRepositoryImpl | High | Claude | Stripped PII from Timber log message | 6 Apr 2026 |
+| 6 Apr 2026 | 1 | BiometricPrompt captures stale Activity reference | High | Claude | Keyed on activity + rememberUpdatedState for callbacks | 6 Apr 2026 |
 
 **Severity values:** `Critical` | `High` | `Medium` | `Low`
 
@@ -235,4 +239,5 @@
 | Date | Changed By | Change Description | Impact |
 |------|-----------|-------------------|--------|
 | 3 Apr 2026 | Aathira T Dev | Initial tracker created | Baseline established |
-| | | | |
+| 5 Apr 2026 | Aathira T Dev | Phase 1b auth & onboarding committed | Auth, onboarding, nav graph, biometric lock, persona selection |
+| 6 Apr 2026 | Claude (code review) | Code review fixes applied (12 issues) | Dependency fix, architecture violation, privacy, UX compliance, decomposition |

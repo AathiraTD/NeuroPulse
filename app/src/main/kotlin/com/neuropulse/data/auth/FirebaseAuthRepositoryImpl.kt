@@ -129,7 +129,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor() : AuthRepository {
                 auth.sendPasswordResetEmail(email).await()
             }.also { result ->
                 result.fold(
-                    onSuccess = { Timber.tag("NeuroPulse").d("Auth: password reset email sent to $email") },
+                    onSuccess = { Timber.tag("NeuroPulse").d("Auth: password reset email sent") },
                     onFailure = { Timber.tag("NeuroPulse").w(it, "Auth: password reset email failed") },
                 )
             }

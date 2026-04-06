@@ -1,5 +1,6 @@
 package com.neuropulse.ui.navigation
 
+import timber.log.Timber
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.ui.unit.dp
 import com.neuropulse.ui.theme.NeuroPulseTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,11 +23,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,8 +34,6 @@ import androidx.navigation.compose.rememberNavController
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.neuropulse.BuildConfig
-import com.neuropulse.domain.repository.AuthRepository
-import com.neuropulse.domain.repository.UserPreferencesRepository
 import com.neuropulse.ui.home.BiometricLockScreen
 import com.neuropulse.ui.home.BiometricSetupDialog
 import com.neuropulse.ui.home.HomeViewModel
@@ -48,14 +45,7 @@ import com.neuropulse.ui.onboarding.LoginViewModel
 import com.neuropulse.ui.onboarding.PersonaSelectionScreen
 import com.neuropulse.ui.onboarding.PersonaSelectionViewModel
 import com.neuropulse.ui.onboarding.SplashScreen
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 // ── Auth gate ViewModel ───────────────────────────────────────────────────────
 
@@ -77,37 +67,6 @@ import javax.inject.Inject
  * The auth check runs concurrently with the splash animation on first launch —
  * latency is hidden behind the ~2400ms animation window (DD-004).
  */
-@HiltViewModel
-class AuthGateViewModel @Inject constructor(
-    private val userPreferencesRepository: UserPreferencesRepository,
-    private val authRepository: AuthRepository,
-) : ViewModel() {
-
-    /**
-     * Emits the resolved start destination route once the auth check completes.
-     * Emits null until the check finishes — the UI shows nothing until first non-null.
-     */
-    val startDestination: StateFlow<String?> = flow {
-        emit(resolveStartDestination())
-    }.stateIn(
-        scope            = viewModelScope,
-        started          = SharingStarted.WhileSubscribed(5_000),
-        initialValue     = null,
-    )
-
-    private suspend fun resolveStartDestination(): String {
-        if (BuildConfig.DEBUG && BuildConfig.SKIP_AUTH) return NavDestinations.HOME
-        val uid = userPreferencesRepository.getFirebaseUid()
-        if (uid.isEmpty()) return NavDestinations.SPLASH
-        val tokenValid = authRepository.isTokenValid()
-        return when {
-            !tokenValid                                         -> NavDestinations.LOGIN
-            !userPreferencesRepository.isOnboardingComplete()  -> NavDestinations.PERSONA_SELECT
-            userPreferencesRepository.isBiometricEnabled()     -> NavDestinations.BIOMETRIC_LOCK
-            else                                               -> NavDestinations.HOME
-        }
-    }
-}
 
 // ── NavGraph ──────────────────────────────────────────────────────────────────
 
@@ -208,11 +167,13 @@ fun NeuroPulseNavGraph(
                             val result = credentialManager.getCredential(context, request)
                             val idToken = (result.credential as GoogleIdTokenCredential).idToken
                             viewModel.onGoogleSignIn(idToken)
+                        } catch (_: GetCredentialCancellationException) {
+                            // User cancelled — no action needed, stay on login screen
                         } catch (e: GetCredentialException) {
-                            // User cancelled or no credential available — fail silently
+                            Timber.tag("NeuroPulse").w(e, "Google Sign-In credential error")
                             viewModel.onGoogleSignIn("")
                         } catch (e: Exception) {
-                            // Unexpected error — pass empty idToken to trigger error state
+                            Timber.tag("NeuroPulse").w(e, "Google Sign-In unexpected error")
                             viewModel.onGoogleSignIn("")
                         }
                     }
@@ -289,7 +250,10 @@ fun NeuroPulseNavGraph(
                             text     = "Guest mode — your progress won't be saved. Create an account to keep it.",
                             style    = MaterialTheme.typography.labelMedium,
                             color    = NeuroPulseTheme.colors.onSurface,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(
+                                horizontal = NeuroPulseTheme.spacing.elementBuffer,
+                                vertical = NeuroPulseTheme.spacing.elementBufferCompact,
+                            ),
                         )
                     }
                 }

@@ -17,9 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,9 +58,14 @@ fun BiometricLockScreen(
     onUsePasswordInstead: () -> Unit,
 ) {
     val context  = LocalContext.current
+    val activity = context as FragmentActivity
     val colors   = NeuroPulseTheme.colors
     val spacing  = NeuroPulseTheme.spacing
-    val executor = remember { ContextCompat.getMainExecutor(context) }
+    val executor = remember(activity) { ContextCompat.getMainExecutor(activity) }
+
+    // Use rememberUpdatedState so the callback always invokes the latest lambda,
+    // even if the composable recomposes with a new onAuthenticated reference.
+    val currentOnAuthenticated = rememberUpdatedState(onAuthenticated)
 
     val promptInfo = remember {
         BiometricPrompt.PromptInfo.Builder()
@@ -67,13 +75,15 @@ fun BiometricLockScreen(
             .build()
     }
 
-    val biometricPrompt = remember {
+    // Keyed on activity so the prompt is recreated after configuration changes,
+    // avoiding a stale Activity reference that would crash BiometricPrompt.
+    val biometricPrompt = remember(activity) {
         BiometricPrompt(
-            context as FragmentActivity,
+            activity,
             executor,
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    onAuthenticated()
+                    currentOnAuthenticated.value()
                 }
                 // Error and failure both leave the user on the fallback UI below.
                 // They can retry or sign in differently — no auto-navigation on failure.
@@ -147,4 +157,69 @@ fun BiometricLockScreen(
             }
         }
     }
+}
+
+// ── Previews ─────────────────────────────────────────────────────────────────
+
+/**
+ * Static preview of the biometric fallback UI (no BiometricPrompt system call).
+ *
+ * Shows the "Verify it's you" screen that appears behind or after the system prompt.
+ * Cannot preview the actual BiometricPrompt — it requires a real FragmentActivity.
+ */
+@Composable
+private fun BiometricLockScreenPreviewContent() {
+    val colors  = NeuroPulseTheme.colors
+    val spacing = NeuroPulseTheme.spacing
+    Scaffold(containerColor = colors.surface) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = spacing.globalPadding, vertical = spacing.globalPadding),
+            verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            NeuroPulseLogoHeader()
+            Spacer(Modifier.weight(1f))
+            Text(
+                text  = "Verify it's you",
+                style = MaterialTheme.typography.headlineMedium,
+                color = colors.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text  = "Use your fingerprint, face, or device PIN to continue.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = {},
+                colors  = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor   = colors.onPrimary,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(spacing.touchTarget),
+            ) { Text("Try again") }
+            TextButton(onClick = {}) {
+                Text(text = "Sign in differently", color = colors.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Biometric Lock — Light")
+@Composable
+private fun BiometricLockScreenLightPreview() {
+    NeuroPulseTheme { BiometricLockScreenPreviewContent() }
+}
+
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Biometric Lock — Dark")
+@Composable
+private fun BiometricLockScreenDarkPreview() {
+    NeuroPulseTheme(darkTheme = true) { BiometricLockScreenPreviewContent() }
 }

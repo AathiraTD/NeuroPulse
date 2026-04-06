@@ -458,6 +458,87 @@ Button(
 ```
 
 **Status:** Fixed (Phase 1b, 2026-04)
+
+---
+
+## E-008 — Missing google-id dependency causes build failure
+
+**Date:** 2026-04 | **Phase:** 1 | **File:** gradle/libs.versions.toml, app/build.gradle.kts
+
+**Symptom:** Compilation failure — `GetGoogleIdOption` and `GoogleIdTokenCredential` unresolved in `NeuroPulseNavGraph.kt`.
+
+**Root cause:** `com.google.android.libraries.identity.googleid:googleid` was not declared in the version catalog. The `androidx.credentials:credentials` library was present but does not include the Google ID token classes.
+
+**Fix:** Added `googleId = "1.1.1"` version, `google-id` library entry in `libs.versions.toml`, and `implementation(libs.google.id)` in `app/build.gradle.kts`.
+
+**Learning:** Credential Manager and Google Identity are separate artifacts. Always verify transitive dependencies when adding new import paths.
+
+**Status:** Fixed (code review, 2026-04-06)
+
+---
+
+## E-009 — Duplicate ForgotPasswordDialog with hardcoded colour
+
+**Date:** 2026-04 | **Phase:** 1 | **File:** ui/onboarding/ForgotPasswordDialog.kt, ui/onboarding/LoginScreen.kt
+
+**Symptom:** Two public `ForgotPasswordDialog` composables with identical signatures in the same package — causes compile ambiguity. Standalone version uses hardcoded `Color(0xFFB8860B)` (Goldenrod) instead of `NeuroPulseTheme.colors.signal` (Attention Amber `0xFFFFB224`).
+
+**Root cause:** The dialog was initially implemented in its own file, then re-implemented inline in `LoginScreen.kt` with theme compliance. The original file was not removed.
+
+**Fix:** Deleted standalone `ForgotPasswordDialog.kt`. The `LoginScreen.kt` version correctly uses `colors.signal`.
+
+**Learning:** When moving composables inline, always delete the original file. Theme colour compliance must be verified against `NeuroPulseColors` constants, not approximated.
+
+**Status:** Fixed (code review, 2026-04-06)
+
+---
+
+## E-010 — LoginViewModel imports data-layer concrete class
+
+**Date:** 2026-04 | **Phase:** 1 | **File:** ui/onboarding/LoginViewModel.kt
+
+**Symptom:** `import com.neuropulse.data.auth.FirebaseAuthRepositoryImpl` in the ViewModel layer — breaks ADR-001 dependency direction (ViewModel → UseCase → Repository interface → DAO/Client, never reverse).
+
+**Root cause:** `mapFirebaseError()` was placed as a companion function on `FirebaseAuthRepositoryImpl` to "keep Firebase exception classes out of the ViewModel," but the ViewModel imported the concrete class anyway, defeating the purpose.
+
+**Fix:** Replaced with `exception::class.simpleName` matching in the ViewModel — no Firebase imports needed. Error mapping is presentation logic (exception → user-facing string).
+
+**Learning:** Static utility methods on data-layer classes create hidden coupling. Presentation-layer error mapping belongs in the ViewModel.
+
+**Status:** Fixed (code review, 2026-04-06)
+
+---
+
+## E-011 — BiometricPrompt captures stale Activity in remember
+
+**Date:** 2026-04 | **Phase:** 1 | **File:** ui/home/BiometricLockScreen.kt
+
+**Symptom:** `BiometricPrompt` created inside `remember { }` captures the Activity reference. On configuration change (rotation), the remembered prompt holds the old (destroyed) Activity — crash on next `authenticate()` call.
+
+**Root cause:** `remember` without a key does not recompute when the Activity is recreated.
+
+**Fix:** Keyed `remember(activity)` so `BiometricPrompt` and executor are recreated after config changes. Callbacks use `rememberUpdatedState` to always invoke the latest lambda.
+
+**Learning:** Never capture `Activity` in keyless `remember`. Always use `remember(activity)` for objects that hold Activity references.
+
+**Status:** Fixed (code review, 2026-04-06)
+
+---
+
+## E-012 — Google Sign-In swallows user cancellation as error
+
+**Date:** 2026-04 | **Phase:** 1 | **File:** ui/navigation/NeuroPulseNavGraph.kt
+
+**Symptom:** When user cancels Google Sign-In, `onGoogleSignIn("")` is called with an empty token, causing Firebase to throw `IllegalArgumentException` and show a generic "Sign-in failed" error.
+
+**Root cause:** Both `GetCredentialCancellationException` (user cancelled) and other `GetCredentialException` subtypes were caught in the same handler and treated identically.
+
+**Fix:** Separated `GetCredentialCancellationException` (no-op — user stays on login screen) from real errors (logged via Timber, empty token triggers error state).
+
+**Learning:** Always distinguish user cancellation from genuine errors in credential flows.
+
+**Status:** Fixed (code review, 2026-04-06)
+
 <!-- Example structure:
 
 ## E-001 — [Short bug title]

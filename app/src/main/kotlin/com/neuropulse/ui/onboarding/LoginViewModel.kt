@@ -2,7 +2,6 @@ package com.neuropulse.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.neuropulse.data.auth.FirebaseAuthRepositoryImpl
 import com.neuropulse.domain.repository.AuthRepository
 import com.neuropulse.domain.repository.NetworkMonitor
 import com.neuropulse.domain.repository.UserPreferencesRepository
@@ -279,13 +278,21 @@ class LoginViewModel @Inject constructor(
         (_uiState.value as? LoginUiState.Idle)?.password ?: ""
 
     /**
-     * Maps a Firebase auth exception to a user-readable, actionable string.
+     * Maps an auth exception to a user-readable, actionable string.
      *
-     * Delegates to [FirebaseAuthRepositoryImpl.mapFirebaseError] so that Firebase
-     * exception class references stay in the data layer. The ViewModel only handles
-     * the presentation of the message, not the classification.
+     * Uses simple-name matching so the presentation layer never imports Firebase
+     * exception classes, preserving the dependency direction (ADR-001).
      */
     private fun mapAuthError(exception: Throwable): String =
-        FirebaseAuthRepositoryImpl.mapFirebaseError(exception)
+        when (exception::class.simpleName) {
+            "FirebaseAuthInvalidCredentialsException" ->
+                "Check your email address or password and try again"
+            "FirebaseAuthInvalidUserException" ->
+                "No account found for this email — set one up below"
+            "FirebaseAuthUserCollisionException" ->
+                "An account already exists for this email — try signing in"
+            else ->
+                "Sign-in failed — check your connection and try again"
+        }
 }
 

@@ -108,6 +108,7 @@ dependencies {
 
     // Google Identity (One-Tap & CredentialManager)
     implementation(libs.credentials)
+    implementation(libs.google.id)
 
     // Biometric (fingerprint / face unlock — DD-010)
     implementation(libs.biometric)

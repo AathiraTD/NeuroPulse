@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.neuropulse.ui.brand.NeuroPulseBrand
 import com.neuropulse.ui.theme.LocalReduceMotion
+import com.neuropulse.ui.theme.NeuroPulseColors
 import com.neuropulse.ui.theme.NeuroPulseTheme
 import kotlinx.coroutines.delay
 
@@ -105,10 +106,7 @@ private val CONTENT_SLIDE_PX  = 300     // Login content starting Y offset (px l
  */
 @Composable
 fun SplashScreen(onSplashComplete: () -> Unit) {
-    val colors       = NeuroPulseTheme.colors
-    val spacing      = NeuroPulseTheme.spacing
     val reduceMotion = LocalReduceMotion.current
-
     var phase by remember { mutableStateOf(SplashPhase.LOGO_ENTER) }
 
     // Single coroutine drives all phase transitions.
@@ -124,131 +122,152 @@ fun SplashScreen(onSplashComplete: () -> Unit) {
         delay(600);  onSplashComplete()
     }
 
-    // ── Animated values — all derived from [phase] ────────────────────────────
+    val anim = rememberSplashAnimationValues(phase)
 
-    // Phase 0: logo entrance
+    SplashLayout(phase = phase, anim = anim)
+}
+
+/**
+ * Holds all animated values derived from the current [SplashPhase].
+ *
+ * Extracted from [SplashScreen] so the parent stays under 30 lines (CLAUDE.md).
+ * Each property maps directly to a phase-driven `animateXAsState` call.
+ */
+private data class SplashAnimationValues(
+    val logoScale: Float,
+    val wordmarkAlpha: Float,
+    val ringRotation: Float,
+    val ringSweepAngle: Float,
+    val ringRadius: Dp,
+    val ringAlpha: Float,
+    val overlayAlpha: Float,
+    val contentOffsetY: Dp,
+    val contentAlpha: Float,
+)
+
+/** Creates all splash animation states keyed on [phase]. */
+@Composable
+private fun rememberSplashAnimationValues(phase: SplashPhase): SplashAnimationValues {
     val logoScale by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.RING_SPIN) 1f else 0.8f,
-        animationSpec  = tween(400, easing = FastOutSlowInEasing),
-        label          = "logoScale",
+        targetValue   = if (phase >= SplashPhase.RING_SPIN) 1f else 0.8f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing), label = "logoScale",
     )
     val wordmarkAlpha by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.RING_SPIN) 1f else 0f,
-        animationSpec  = tween(400, easing = FastOutSlowInEasing),
-        label          = "wordmarkAlpha",
+        targetValue   = if (phase >= SplashPhase.RING_SPIN) 1f else 0f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing), label = "wordmarkAlpha",
     )
-
-    // Phase 1: ring spin (rotation + sweep)
     val ringRotation by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.RING_EXPAND) 540f else 0f,
-        animationSpec  = tween(800, easing = FastOutSlowInEasing),
-        label          = "ringRotation",
+        targetValue   = if (phase >= SplashPhase.RING_EXPAND) 540f else 0f,
+        animationSpec = tween(800, easing = FastOutSlowInEasing), label = "ringRotation",
     )
     val ringSweepAngle by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.RING_EXPAND) 270f else 0f,
-        animationSpec  = tween(800, easing = FastOutSlowInEasing),
-        label          = "ringSweepAngle",
+        targetValue   = if (phase >= SplashPhase.RING_EXPAND) 270f else 0f,
+        animationSpec = tween(800, easing = FastOutSlowInEasing), label = "ringSweepAngle",
     )
-
-    // Phase 2: ring expand + fade + white overlay
     val ringRadius by animateDpAsState(
-        targetValue    = if (phase >= SplashPhase.RING_EXPAND) RING_MAX_RADIUS
-                         else (LOGO_SIZE_SPLASH / 2 + RING_RING_INSET),
-        animationSpec  = tween(600, easing = FastOutSlowInEasing),
-        label          = "ringRadius",
+        targetValue   = if (phase >= SplashPhase.RING_EXPAND) RING_MAX_RADIUS
+                        else (LOGO_SIZE_SPLASH / 2 + RING_RING_INSET),
+        animationSpec = tween(600, easing = FastOutSlowInEasing), label = "ringRadius",
     )
     val ringAlpha by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.CONTENT_REVEAL) 0f else 0.75f,
-        animationSpec  = tween(600, easing = LinearEasing),
-        label          = "ringAlpha",
+        targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) 0f else 0.75f,
+        animationSpec = tween(600, easing = LinearEasing), label = "ringAlpha",
     )
     val overlayAlpha by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.RING_EXPAND) 1f else 0f,
-        animationSpec  = tween(600, easing = FastOutSlowInEasing),
-        label          = "overlayAlpha",
+        targetValue   = if (phase >= SplashPhase.RING_EXPAND) 1f else 0f,
+        animationSpec = tween(600, easing = FastOutSlowInEasing), label = "overlayAlpha",
     )
-
-    // Phase 3: content reveal
     val contentOffsetY by animateDpAsState(
-        targetValue    = if (phase >= SplashPhase.CONTENT_REVEAL) 0.dp else CONTENT_SLIDE_PX.dp,
-        animationSpec  = tween(600, easing = FastOutSlowInEasing),
-        label          = "contentOffsetY",
+        targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) 0.dp else CONTENT_SLIDE_PX.dp,
+        animationSpec = tween(600, easing = FastOutSlowInEasing), label = "contentOffsetY",
     )
     val contentAlpha by animateFloatAsState(
-        targetValue    = if (phase >= SplashPhase.CONTENT_REVEAL) 1f else 0f,
-        animationSpec  = tween(600, easing = FastOutSlowInEasing),
-        label          = "contentAlpha",
+        targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) 1f else 0f,
+        animationSpec = tween(600, easing = FastOutSlowInEasing), label = "contentAlpha",
     )
+    return SplashAnimationValues(
+        logoScale, wordmarkAlpha, ringRotation, ringSweepAngle,
+        ringRadius, ringAlpha, overlayAlpha, contentOffsetY, contentAlpha,
+    )
+}
 
-    // ── Layout ────────────────────────────────────────────────────────────────
+/**
+ * Renders the splash layout layers: gradient, overlay, logo+ring, and content placeholder.
+ *
+ * Extracted from [SplashScreen] to keep each function under 30 lines (CLAUDE.md).
+ */
+@Composable
+private fun SplashLayout(phase: SplashPhase, anim: SplashAnimationValues) {
+    val colors  = NeuroPulseTheme.colors
+    val spacing = NeuroPulseTheme.spacing
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val maxW = maxWidth
         val maxH = maxHeight
 
-        // Logo position: animates from screen centre → top-left (spacing.globalPadding)
         val logoOffsetX by animateDpAsState(
             targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) spacing.globalPadding
                             else (maxW / 2 - LOGO_SIZE_SPLASH / 2),
-            animationSpec = tween(600, easing = FastOutSlowInEasing),
-            label         = "logoOffsetX",
+            animationSpec = tween(600, easing = FastOutSlowInEasing), label = "logoOffsetX",
         )
         val logoOffsetY by animateDpAsState(
             targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) spacing.globalPadding
                             else (maxH / 2 - LOGO_SIZE_SPLASH / 2),
-            animationSpec = tween(600, easing = FastOutSlowInEasing),
-            label         = "logoOffsetY",
+            animationSpec = tween(600, easing = FastOutSlowInEasing), label = "logoOffsetY",
         )
         val logoSizeAnimated by animateDpAsState(
             targetValue   = if (phase >= SplashPhase.CONTENT_REVEAL) LOGO_SIZE_FINAL
                             else LOGO_SIZE_SPLASH,
-            animationSpec = tween(600, easing = FastOutSlowInEasing),
-            label         = "logoSize",
+            animationSpec = tween(600, easing = FastOutSlowInEasing), label = "logoSize",
         )
 
-        // Layer 1 — horizontal gradient background (static; overlay dissolves in above it)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(colors.primary, colors.primaryTint),
-                    ),
-                ),
-        )
+        SplashBackgroundLayers(colors = colors, overlayAlpha = anim.overlayAlpha)
 
-        // Layer 2 — white surface overlay (alpha 0→1 during Phase 2)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(overlayAlpha)
-                .background(colors.surface),
-        )
-
-        // Layer 3 — logo + ring (absolutely positioned via offset)
         LogoAndRingLayer(
-            logoRes       = NeuroPulseBrand.logoRes,
-            appName       = NeuroPulseBrand.APP_NAME,
-            logoSize      = logoSizeAnimated,
-            logoScale     = logoScale,
-            wordmarkAlpha = wordmarkAlpha,
-            ringRotation  = ringRotation,
-            ringSweepAngle= ringSweepAngle,
-            ringRadius    = ringRadius,
-            ringAlpha     = ringAlpha,
-            offsetX       = logoOffsetX,
-            offsetY       = logoOffsetY,
-            phase         = phase,
+            logoRes        = NeuroPulseBrand.logoRes,
+            appName        = NeuroPulseBrand.APP_NAME,
+            logoSize       = logoSizeAnimated,
+            logoScale      = anim.logoScale,
+            wordmarkAlpha  = anim.wordmarkAlpha,
+            ringRotation   = anim.ringRotation,
+            ringSweepAngle = anim.ringSweepAngle,
+            ringRadius     = anim.ringRadius,
+            ringAlpha      = anim.ringAlpha,
+            offsetX        = logoOffsetX,
+            offsetY        = logoOffsetY,
+            phase          = phase,
         )
 
-        // Layer 4 — login content slide placeholder (cosmetic; real LoginScreen loads post-nav)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(y = contentOffsetY)
-                .alpha(contentAlpha),
+                .offset(y = anim.contentOffsetY)
+                .alpha(anim.contentAlpha),
         )
     }
+}
+
+/**
+ * Draws the two background layers: gradient and surface overlay.
+ *
+ * Layer 1 is a static horizontal gradient (primary → primaryTint).
+ * Layer 2 is a surface overlay whose alpha animates from 0→1 during Phase 2.
+ */
+@Composable
+private fun SplashBackgroundLayers(colors: NeuroPulseColors, overlayAlpha: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.horizontalGradient(colors = listOf(colors.primary, colors.primaryTint)),
+            ),
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(overlayAlpha)
+            .background(colors.surface),
+    )
 }
 
 // ── Sub-composables ───────────────────────────────────────────────────────────
@@ -296,10 +315,10 @@ private fun LogoAndRingLayer(
             Text(
                 text      = appName,
                 style     = MaterialTheme.typography.titleMedium,
-                color     = Color.White,
+                color     = NeuroPulseTheme.colors.onPrimary,
                 textAlign = TextAlign.Center,
                 modifier  = Modifier
-                    .offset(y = logoSize + 8.dp)
+                    .offset(y = logoSize + NeuroPulseTheme.spacing.cornerRadiusSmall)
                     .alpha(wordmarkAlpha),
             )
         }
@@ -343,6 +362,7 @@ private fun SplashRingCanvas(
 ) {
     val ringDiameter = radius * 2
     val centreOffset = (logoSize / 2) - radius  // negative = ring extends beyond logo
+    val ringColor    = NeuroPulseTheme.colors.onPrimary
 
     Box(
         modifier = Modifier
@@ -350,10 +370,11 @@ private fun SplashRingCanvas(
             .offset(x = centreOffset, y = centreOffset)
             .drawBehind {
                 drawRingArc(
-                    rotation   = rotation,
-                    sweepAngle = sweepAngle,
+                    rotation    = rotation,
+                    sweepAngle  = sweepAngle,
                     strokeWidth = RING_STROKE_WIDTH.toPx(),
-                    alpha      = alpha,
+                    alpha       = alpha,
+                    arcColor    = ringColor,
                 )
             },
     )
@@ -371,12 +392,13 @@ private fun DrawScope.drawRingArc(
     sweepAngle: Float,
     strokeWidth: Float,
     alpha: Float,
+    arcColor: Color,
 ) {
     if (sweepAngle < 0.5f || alpha < 0.01f) return  // avoid drawing invisible arcs
 
     rotate(degrees = rotation) {
         drawArc(
-            color      = Color.White.copy(alpha = alpha),
+            color      = arcColor.copy(alpha = alpha),
             startAngle = -90f,  // 12 o'clock position
             sweepAngle = sweepAngle,
             useCenter  = false,

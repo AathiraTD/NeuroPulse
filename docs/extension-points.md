@@ -134,6 +134,7 @@ Yahoo, Microsoft, and Apple are already implemented via the shared `signInWithOA
 |---|---|---|
 | `AuthRepository` | `FirebaseAuthRepositoryImpl` | `data/auth/` — Phase 1 |
 | `UserPreferencesRepository` | `UserPreferencesDataStoreImpl` | `data/local/` — Phase 1 |
+| `NetworkMonitor` | `ConnectivityNetworkMonitor` | `data/network/` — Phase 1 |
 | `BriefingStrategy` | `MorningPlanStrategy`, `PreEventStrategy`, `HyperfocusStrategy`, `StressGroundingStrategy` | `data/ai/strategy/` — Phase 4 |
 | `DeliveryStrategy` | `PhoneDeliveryStrategy` | `data/delivery/` — Phase 5 |
 | `ChatLanguageModel` | Gemini Flash via LangChain4j | `data/di/BriefingModule.kt` — Phase 4 |
