@@ -2,9 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+// Apply google-services only when google-services.json exists.
+// Without this file, Firebase Auth will not work at runtime, but the app
+// still builds and runs with SKIP_AUTH=true in debug mode.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
 android {
