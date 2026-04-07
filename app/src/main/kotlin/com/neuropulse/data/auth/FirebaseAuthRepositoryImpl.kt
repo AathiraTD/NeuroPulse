@@ -65,7 +65,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor() : AuthRepository {
             runCatching {
                 val builder = OAuthProvider.newBuilder(providerId)
                 if (providerId == "apple.com") {
-                    builder.addScope("email").addScope("name")
+                    builder.setScopes(listOf("email", "name"))
                 }
                 val result = auth
                     .startActivityForSignInWithProvider(activity as Activity, builder.build())
@@ -127,6 +127,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor() : AuthRepository {
         withContext(Dispatchers.IO) {
             runCatching {
                 auth.sendPasswordResetEmail(email).await()
+                Unit
             }.also { result ->
                 result.fold(
                     onSuccess = { Timber.tag("NeuroPulse").d("Auth: password reset email sent") },

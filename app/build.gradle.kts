@@ -6,11 +6,9 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Apply google-services only when google-services.json exists.
-// Without this file, Firebase Auth will not work at runtime, but the app
-// still builds and runs with SKIP_AUTH=true in debug mode.
+// Only apply google-services if the JSON exists, allowing "Quick Start" mode.
 if (file("google-services.json").exists()) {
-    apply(plugin = libs.plugins.google.services.get().pluginId)
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -78,6 +76,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+
+    // Material Components (required for Material3 XML themes)
+    implementation(libs.google.android.material)
 
     // Compose
     implementation(platform(libs.androidx.compose.bom))

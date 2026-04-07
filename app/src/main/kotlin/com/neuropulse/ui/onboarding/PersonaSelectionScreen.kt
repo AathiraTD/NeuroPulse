@@ -33,7 +33,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.neuropulse.domain.model.UserPreferences
@@ -74,54 +73,64 @@ fun PersonaSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = spacing.globalPadding, vertical = spacing.globalPadding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
+                .padding(horizontal = spacing.globalPadding, vertical = spacing.globalPadding),
         ) {
-            NeuroPulseLogoHeader()
+            // Scrollable content area - weight(1f) ensures it takes up available space
+            // and allows the Button below to be pinned at the bottom.
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
+            ) {
+                NeuroPulseLogoHeader()
 
-            Spacer(Modifier.height(spacing.sectionSpacing))
+                Spacer(Modifier.height(spacing.sectionSpacing))
 
-            Text(
-                text  = "Which feels more like you?",
-                style = MaterialTheme.typography.headlineMedium,
-                color = colors.onSurface,
-            )
-            Text(
-                text  = "There's no wrong answer — this shapes how NeuroPulse supports your day.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant,
-            )
+                Text(
+                    text  = "Which feels more like you?",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colors.onSurface,
+                )
+                Text(
+                    text  = "There's no wrong answer — this shapes how NeuroPulse supports your day.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
 
-            Spacer(Modifier.height(spacing.elementBuffer))
+                Spacer(Modifier.height(spacing.elementBuffer))
 
-            PersonaCard(
-                name         = "Marcus",
-                tagline      = "Time-blindness dominant",
-                description  = "I lose track of time without noticing. Tasks I meant to take " +
-                               "10 minutes somehow take 2 hours — and I'm never sure where the " +
-                               "time went.",
-                personaKey   = UserPreferences.PERSONA_MARCUS,
-                isSelected   = selectedPersona == UserPreferences.PERSONA_MARCUS,
-                reduceMotion = reduceMotion,
-                onSelect     = { selectedPersona = UserPreferences.PERSONA_MARCUS },
-            )
+                PersonaCard(
+                    name         = "Marcus",
+                    tagline      = "Time-blindness dominant",
+                    description  = "I lose track of time without noticing. Tasks I meant to take " +
+                                   "10 minutes somehow take 2 hours — and I'm never sure where the " +
+                                   "time went.",
+                    personaKey   = UserPreferences.PERSONA_MARCUS,
+                    isSelected   = selectedPersona == UserPreferences.PERSONA_MARCUS,
+                    reduceMotion = reduceMotion,
+                    onSelect     = { selectedPersona = UserPreferences.PERSONA_MARCUS },
+                )
 
-            PersonaCard(
-                name         = "Zoe",
-                tagline      = "Hyperfocus dominant",
-                description  = "I get completely absorbed in one thing and struggle to switch — " +
-                               "especially when it's interesting. Other tasks pile up while I'm " +
-                               "deep in the zone.",
-                personaKey   = UserPreferences.PERSONA_ZOE,
-                isSelected   = selectedPersona == UserPreferences.PERSONA_ZOE,
-                reduceMotion = reduceMotion,
-                onSelect     = { selectedPersona = UserPreferences.PERSONA_ZOE },
-            )
+                PersonaCard(
+                    name         = "Zoe",
+                    tagline      = "Hyperfocus dominant",
+                    description  = "I get completely absorbed in one thing and struggle to switch — " +
+                                   "especially when it's interesting. Other tasks pile up while I'm " +
+                                   "deep in the zone.",
+                    personaKey   = UserPreferences.PERSONA_ZOE,
+                    isSelected   = selectedPersona == UserPreferences.PERSONA_ZOE,
+                    reduceMotion = reduceMotion,
+                    onSelect     = { selectedPersona = UserPreferences.PERSONA_ZOE },
+                )
 
-            Spacer(Modifier.weight(1f))
+                // Add bottom buffer for the scrollable area
+                Spacer(Modifier.height(spacing.elementBuffer))
+            }
 
-            // Confirm CTA — disabled until a card is selected (prevents accidental skip)
+            // Confirm CTA — pinned to bottom, outside of scrollable area.
+            // Using Modifier.weight(1f) inside a scrollable Column is illegal in Compose
+            // and was likely causing the render crash.
             Button(
                 onClick  = { selectedPersona?.let(onPersonaSelected) },
                 enabled  = selectedPersona != null,
@@ -156,13 +165,13 @@ fun PersonaSelectionScreen(
  * PersonaCard — a tappable card representing one ADHD archetype.
  *
  * When [isSelected] is true:
- * - Border animates to [NeuroPulseColors.primary] at 2dp width
- * - Card background deepens to [NeuroPulseColors.surfaceVariant]
+ * - Border animates to primary at 2dp width
+ * - Card background deepens to surfaceVariant
  * - Semantics `selected = true` is set for accessibility
  *
  * When [isSelected] is false:
- * - Border is [NeuroPulseColors.outline] at 1dp
- * - Card background is [NeuroPulseColors.surface]
+ * - Border is outline at 1dp
+ * - Card background is surface
  *
  * The name row shows the archetype label in a small primary-tinted badge
  * to signal this is a recognisable category, not a clinical diagnosis.
@@ -180,21 +189,20 @@ private fun PersonaCard(
     val colors  = NeuroPulseTheme.colors
     val spacing = NeuroPulseTheme.spacing
 
-    val animSpec = NeuroPulseMotion.microInteractionSpec(reduceMotion)
 
     val borderColor by animateColorAsState(
         targetValue = if (isSelected) colors.primary else colors.outline,
-        animationSpec = animSpec,
+        animationSpec = NeuroPulseMotion.microInteractionSpec(reduceMotion),
         label = "persona-card-border-$personaKey",
     )
     val borderWidth by animateDpAsState(
         targetValue = if (isSelected) 2.dp else 1.dp,
-        animationSpec = animSpec,
+        animationSpec = NeuroPulseMotion.microInteractionSpec(reduceMotion),
         label = "persona-card-border-width-$personaKey",
     )
     val cardBackground by animateColorAsState(
         targetValue = if (isSelected) colors.surfaceVariant else colors.surface,
-        animationSpec = animSpec,
+        animationSpec = NeuroPulseMotion.microInteractionSpec(reduceMotion),
         label = "persona-card-bg-$personaKey",
     )
 
@@ -247,7 +255,7 @@ private fun PersonaCard(
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "PersonaSelect — Light — None selected")
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "PersonaSelect — Dark — None selected")
 @Composable
-private fun PersonaSelectionNoneSelectedPreview() {
+internal fun PersonaSelectionNoneSelectedPreview() {
     NeuroPulseTheme {
         PersonaSelectionScreen(onPersonaSelected = {})
     }
@@ -255,7 +263,7 @@ private fun PersonaSelectionNoneSelectedPreview() {
 
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "PersonaSelect — Light — Marcus selected")
 @Composable
-private fun PersonaSelectionMarcusPreview() {
+internal fun PersonaSelectionMarcusPreview() {
     NeuroPulseTheme {
         // Previewing selected state via a wrapper — selection state lives in the composable
         PersonaCard(
@@ -273,7 +281,7 @@ private fun PersonaSelectionMarcusPreview() {
 
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "PersonaSelect — Light — Zoe selected")
 @Composable
-private fun PersonaSelectionZoePreview() {
+internal fun PersonaSelectionZoePreview() {
     NeuroPulseTheme {
         PersonaCard(
             name         = "Zoe",

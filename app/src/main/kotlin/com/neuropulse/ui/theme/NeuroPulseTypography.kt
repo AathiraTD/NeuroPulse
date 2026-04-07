@@ -4,7 +4,6 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontFeatureSettings
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.em
@@ -56,7 +55,7 @@ val AtkinsonHyperlegible = FontFamily(
  */
 val NumericalTextStyle = TextStyle(
     fontFamily      = AtkinsonHyperlegible,
-    fontFeatureSettings = FontFeatureSettings("tnum"),
+    fontFeatureSettings = "tnum",
     fontWeight      = FontWeight.Medium,
     fontSize        = 18.sp,
     lineHeight      = 1.5.em,

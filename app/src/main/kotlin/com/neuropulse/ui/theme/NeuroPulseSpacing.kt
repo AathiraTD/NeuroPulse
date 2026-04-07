@@ -86,7 +86,7 @@ object NeuroPulseMotion {
      *
      * @param reduceMotion Pass LocalReduceMotion.current from the call site.
      */
-    fun microInteractionSpec(reduceMotion: Boolean): AnimationSpec<Float> =
+    fun <T> microInteractionSpec(reduceMotion: Boolean): AnimationSpec<T> =
         if (reduceMotion) tween(durationMillis = 0)
         else tween(
             durationMillis = DurationShortMs,
@@ -97,7 +97,7 @@ object NeuroPulseMotion {
      * Returns the appropriate [AnimationSpec] for screen-level transitions,
      * gated by the current [reduceMotion] preference.
      */
-    fun transitionSpec(reduceMotion: Boolean): AnimationSpec<Float> =
+    fun <T> transitionSpec(reduceMotion: Boolean): AnimationSpec<T> =
         if (reduceMotion) tween(durationMillis = 0)
         else tween(
             durationMillis = DurationStandardMs,
@@ -114,14 +114,12 @@ object NeuroPulseMotion {
      * CLAUDE: Use this for the hyperfocus alert card entrance animation only.
      * Never use for repeated looping animation — one cycle on entry, then rest.
      */
-    fun gentleExpandSpec(reduceMotion: Boolean): AnimationSpec<Float> =
+    fun <T> gentleExpandSpec(reduceMotion: Boolean): AnimationSpec<T> =
         if (reduceMotion) tween(durationMillis = 0)
-        else keyframes {
-            durationMillis = 600
-            1.0f at 0   using FastOutSlowInEasing
-            1.03f at 300 using FastOutSlowInEasing
-            1.0f at 600
-        }
+        else tween(
+            durationMillis = 600,
+            easing         = FastOutSlowInEasing,
+        )
 
     /**
      * DopamineSuccessSpec — used for the 2-second task completion reward animation.
@@ -130,8 +128,11 @@ object NeuroPulseMotion {
      * Plays once on task completion — the Composable using this must
      * remove the success colour after 2000ms (use LaunchedEffect + delay).
      */
-    fun dopamineSuccessSpec(reduceMotion: Boolean): AnimationSpec<Float> =
-        if (reduceMotion) tween(durationMillis = 0)
+    fun <T> dopamineSuccessSpec(reduceMotion: Boolean): AnimationSpec<T> =
+        if (reduceMotion) spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness    = Spring.StiffnessHigh,
+        )
         else spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessMedium,
