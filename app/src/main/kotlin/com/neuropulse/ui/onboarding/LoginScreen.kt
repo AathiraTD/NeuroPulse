@@ -2,12 +2,12 @@ package com.neuropulse.ui.onboarding
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,20 +16,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,8 +42,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -55,28 +62,24 @@ import com.neuropulse.ui.brand.NeuroPulseLogoHeader
 import com.neuropulse.ui.theme.LocalReduceMotion
 import com.neuropulse.ui.theme.NeuroPulseTheme
 
+// ── Figma gradient colours (node 2:350 background) ──────────────────────────
+private val FigmaGradientStart = Color(0xFFA480F0)
+private val FigmaGradientEnd = Color(0xFF2563EB)
+private val FigmaContinueBlue = Color(0xFF1E85F7)
+
 /**
- * LoginScreen — the primary authentication entry point for NeuroPulse.
+ * LoginScreen — primary authentication entry point, matching Figma node 2:350.
  *
- * Fully stateless — all state is hoisted to [LoginViewModel]. The composable
- * derives its entire UI from the [uiState] parameter.
+ * Visual layout from Figma:
+ * 1. Purple-to-blue gradient header with logo + app name
+ * 2. White card with Login ID / Password underline fields
+ * 3. Remember me checkbox + Forgot password link
+ * 4. Blue "Continue" button
+ * 5. "Or continue with:" + 4 stacked social pill buttons
+ * 6. "Can't log in?" link
+ * 7. "Create Account" outlined button
  *
- * ADHD design decisions (DD-005, DD-006):
- * - Google Sign-In is the sole primary CTA — eliminates password recall burden.
- * - Password field is hidden behind [AnimatedVisibility] until email has content.
- *   Sequential disclosure reduces initiation paralysis at the first touch.
- * - Error messages use [com.neuropulse.ui.theme.NeuroPulseColors.signal] (amber) — never red.
- * - One primary CTA only — satisfies the one-CTA-per-screen rule (ADR-005).
- *
- * @param uiState            Current [LoginUiState] from [LoginViewModel].
- * @param onGoogleSignIn     Triggers the Google One-Tap flow from the caller.
- * @param onEmailChange      Reports email text changes to the ViewModel.
- * @param onPasswordChange   Reports password text changes to the ViewModel.
- * @param onEmailSignIn      Triggers email/password sign-in.
- * @param onForgotPasswordTap Triggers the forgot password dialog (E-002).
- * @param onNavigateToSignUp Navigates to persona selection / account creation.
- * @param onContinueAsGuest  Starts an anonymous Firebase session (E-005, DD-015).
- * @param onOAuthSignIn      Triggers Yahoo/Microsoft/Apple OAuth flow with the provider ID string (DD-012).
+ * Fully stateless — all state is hoisted to [LoginViewModel].
  */
 @Composable
 fun LoginScreen(
@@ -90,338 +93,365 @@ fun LoginScreen(
     onContinueAsGuest: () -> Unit,
     onOAuthSignIn: (String) -> Unit,
 ) {
-    val spacing      = NeuroPulseTheme.spacing
+    val colors = NeuroPulseTheme.colors
+    val spacing = NeuroPulseTheme.spacing
+    val isLoading = uiState is LoginUiState.Loading
     val reduceMotion = LocalReduceMotion.current
-    val isLoading    = uiState is LoginUiState.Loading
-
-    val email    = when (uiState) {
-        is LoginUiState.Idle  -> uiState.email
-        is LoginUiState.Error -> uiState.email
-        else                  -> ""
-    }
-    val password = when (uiState) {
-        is LoginUiState.Idle  -> uiState.password
-        is LoginUiState.Error -> uiState.password
-        else                  -> ""
-    }
+    val fields = extractLoginFields(uiState)
     val errorMessage = (uiState as? LoginUiState.Error)?.userMessage
 
-    val focusManager   = LocalFocusManager.current
-    val passwordFocus  = remember { FocusRequester() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Gradient background — matches Figma gradient (#a480f0 → #2563eb)
+        GradientHeader()
 
-    Scaffold(
-        containerColor = NeuroPulseTheme.colors.surface,
-    ) { innerPadding ->
+        // Scrollable content layered on top
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = spacing.globalPadding, vertical = spacing.globalPadding)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
         ) {
-            // Brand header — logo and wordmark in final top-left position
-            NeuroPulseLogoHeader()
+            // Logo area on gradient
+            LogoOnGradient()
 
-            Text(
-                text  = NeuroPulseBrand.TAGLINE,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuroPulseTheme.colors.onSurfaceVariant,
+            // White card with form — matches Figma white overlay
+            WhiteFormCard(
+                fields = fields,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                reduceMotion = reduceMotion,
+                onEmailChange = onEmailChange,
+                onPasswordChange = onPasswordChange,
+                onEmailSignIn = onEmailSignIn,
+                onForgotPasswordTap = onForgotPasswordTap,
+                onGoogleSignIn = onGoogleSignIn,
+                onOAuthSignIn = onOAuthSignIn,
+                onNavigateToSignUp = onNavigateToSignUp,
+                onContinueAsGuest = onContinueAsGuest,
             )
-
-            Spacer(Modifier.height(spacing.sectionSpacing))
-
-            Text(
-                text  = "Welcome back",
-                style = MaterialTheme.typography.headlineMedium,
-                color = NeuroPulseTheme.colors.onSurface,
-            )
-
-            // Primary CTA — Google Sign-In (DD-005)
-            GoogleSignInButton(
-                onClick    = onGoogleSignIn,
-                isLoading  = isLoading,
-                modifier   = Modifier.fillMaxWidth(),
-            )
-
-            OrDivider()
-
-            // Secondary SSO options — Yahoo, Microsoft, Apple (DD-012)
-            // OutlinedButton (not filled) so they don't compete with the primary Google CTA
-            SsoButton(label = "Continue with Yahoo",     providerId = "yahoo.com",     isLoading = isLoading, onSignIn = onOAuthSignIn)
-            SsoButton(label = "Continue with Microsoft", providerId = "microsoft.com",  isLoading = isLoading, onSignIn = onOAuthSignIn)
-            SsoButton(label = "Continue with Apple",     providerId = "apple.com",      isLoading = isLoading, onSignIn = onOAuthSignIn)
-
-            OrDivider()
-
-            // Email field — always visible
-            OutlinedTextField(
-                value         = email,
-                onValueChange = onEmailChange,
-                label         = { Text("Email address") },
-                singleLine    = true,
-                enabled       = !isLoading,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction    = ImeAction.Next,
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { passwordFocus.requestFocus() },
-                ),
-                modifier      = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = "Email address field" },
-            )
-
-            // Password field + sign-in button — revealed only after email has content (DD-006)
-            AnimatedVisibility(
-                visible = email.isNotBlank(),
-                enter   = passwordRevealEnter(reduceMotion),
-                exit    = fadeOut(tween(150)),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer)) {
-                    OutlinedTextField(
-                        value                  = password,
-                        onValueChange          = onPasswordChange,
-                        label                  = { Text("Password") },
-                        singleLine             = true,
-                        enabled                = !isLoading,
-                        visualTransformation   = PasswordVisualTransformation(),
-                        keyboardOptions        = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction    = ImeAction.Done,
-                        ),
-                        keyboardActions        = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                onEmailSignIn()
-                            },
-                        ),
-                        modifier               = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(passwordFocus)
-                            .semantics { contentDescription = "Password field" },
-                    )
-
-                    // "Forgot password?" link — aligned right (E-002)
-                    TextButton(
-                        onClick = onForgotPasswordTap,
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .semantics { contentDescription = "Reset password" },
-                    ) {
-                        Text(
-                            text  = "Forgot your password?",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = NeuroPulseTheme.colors.primary,
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick  = onEmailSignIn,
-                        enabled  = !isLoading && email.isNotBlank() && password.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(spacing.touchTarget)
-                            .semantics { contentDescription = "Sign in with email" },
-                    ) {
-                        Text("Sign in")
-                    }
-                }
-            }
-
-            // Error message — amber, specific, never red (DD-002)
-            AnimatedVisibility(
-                visible = errorMessage != null,
-                enter   = fadeIn(tween(200)),
-                exit    = fadeOut(tween(150)),
-            ) {
-                Text(
-                    text      = errorMessage.orEmpty(),
-                    style     = MaterialTheme.typography.bodyMedium,
-                    color     = NeuroPulseTheme.colors.signal,
-                    textAlign = TextAlign.Center,
-                    modifier  = Modifier.fillMaxWidth(),
-                )
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            // "Can't log in?" link — matches Figma design
-            TextButton(
-                onClick  = onForgotPasswordTap,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .semantics { contentDescription = "Get help signing in" },
-            ) {
-                Text(
-                    text  = "Can't log in?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NeuroPulseTheme.colors.onSurfaceVariant,
-                )
-            }
-
-            // Create Account button — outlined, prominent (matches Figma node 2:350)
-            OutlinedButton(
-                onClick  = onNavigateToSignUp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(spacing.touchTarget)
-                    .semantics { contentDescription = "Create a new account" },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = NeuroPulseTheme.colors.onSurface,
-                ),
-            ) {
-                Text("Create Account")
-            }
-
-            // Guest path — visually de-emphasised so it doesn't compete (E-005)
-            TextButton(
-                onClick  = onContinueAsGuest,
-                enabled  = !isLoading,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .semantics { contentDescription = "Try NeuroPulse without signing in" },
-            ) {
-                Text(
-                    text  = "Try without signing in",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = NeuroPulseTheme.colors.onSurfaceVariant,
-                )
-            }
         }
     }
 }
 
-// ── Sub-composables ───────────────────────────────────────────────────────────
+// ── Section composables ─────────────────────────────────────────────────────
 
-/**
- * GoogleSignInButton — the primary CTA on the login screen.
- *
- * Shows a [CircularProgressIndicator] in place of the label while [isLoading].
- * Background is [com.neuropulse.ui.theme.NeuroPulseColors.primary] (Dusk Periwinkle).
- * Minimum height matches [com.neuropulse.ui.theme.NeuroPulseSpacing.touchTarget] (WCAG 2.5.5).
- */
+/** Purple-to-blue gradient background covering the top portion of the screen. */
 @Composable
-private fun GoogleSignInButton(
-    onClick: () -> Unit,
+private fun GradientHeader() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp)
+            .background(
+                Brush.verticalGradient(listOf(FigmaGradientStart, FigmaGradientEnd)),
+            ),
+    )
+}
+
+/** Logo + app name positioned on the gradient area — matches Figma node 2:353. */
+@Composable
+private fun LogoOnGradient() {
+    val spacing = NeuroPulseTheme.spacing
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(172.dp)
+            .padding(horizontal = spacing.globalPadding),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        NeuroPulseLogoHeader(logoSize = 72.dp)
+    }
+}
+
+/** White card containing all form elements — matches Figma LoginPage component. */
+@Composable
+private fun WhiteFormCard(
+    fields: LoginFields,
     isLoading: Boolean,
-    modifier: Modifier = Modifier,
+    errorMessage: String?,
+    reduceMotion: Boolean,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onEmailSignIn: () -> Unit,
+    onForgotPasswordTap: () -> Unit,
+    onGoogleSignIn: () -> Unit,
+    onOAuthSignIn: (String) -> Unit,
+    onNavigateToSignUp: () -> Unit,
+    onContinueAsGuest: () -> Unit,
 ) {
-    val colors  = NeuroPulseTheme.colors
+    val spacing = NeuroPulseTheme.spacing
+    val colors = NeuroPulseTheme.colors
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = spacing.cornerRadius, topEnd = spacing.cornerRadius))
+            .background(colors.surface)
+            .padding(horizontal = spacing.globalPadding)
+            .padding(top = spacing.sectionSpacing),
+        verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
+    ) {
+        LoginFields(fields, isLoading, onEmailChange, onPasswordChange, onEmailSignIn)
+        RememberMeAndForgotRow(onForgotPasswordTap, isLoading)
+        ErrorMessage(errorMessage, reduceMotion)
+        ContinueButton(onEmailSignIn, isLoading, fields)
+        OrContinueWithText()
+        SocialButtonsColumn(isLoading, onGoogleSignIn, onOAuthSignIn)
+        CantLogInLink(onContinueAsGuest)
+        CreateAccountButton(onNavigateToSignUp)
+        Spacer(Modifier.height(spacing.globalPadding))
+    }
+}
+
+// ── Form fields ─────────────────────────────────────────────────────────────
+
+/** Login ID and Password underline-style fields — matches Figma underline inputs. */
+@Composable
+private fun LoginFields(
+    fields: LoginFields,
+    isLoading: Boolean,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onEmailSignIn: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    val passwordFocus = remember { FocusRequester() }
+
+    // Login ID field — underline style matching Figma
+    OutlinedTextField(
+        value = fields.email,
+        onValueChange = onEmailChange,
+        label = { Text("Login ID *") },
+        singleLine = true,
+        enabled = !isLoading,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Email,
+            imeAction = ImeAction.Next,
+        ),
+        keyboardActions = KeyboardActions(
+            onNext = { passwordFocus.requestFocus() },
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Login ID field" },
+    )
+
+    // Password field — underline style matching Figma
+    OutlinedTextField(
+        value = fields.password,
+        onValueChange = onPasswordChange,
+        label = { Text("Password *") },
+        singleLine = true,
+        enabled = !isLoading,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(
+            onDone = {
+                focusManager.clearFocus()
+                onEmailSignIn()
+            },
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(passwordFocus)
+            .semantics { contentDescription = "Password field" },
+    )
+}
+
+/** Row with "Remember me" checkbox and "Forgot password?" link — matches Figma. */
+@Composable
+private fun RememberMeAndForgotRow(
+    onForgotPasswordTap: () -> Unit,
+    isLoading: Boolean,
+) {
+    val colors = NeuroPulseTheme.colors
+    var rememberMe by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = rememberMe,
+                onCheckedChange = { rememberMe = it },
+                enabled = !isLoading,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = colors.primary,
+                    uncheckedColor = colors.onSurfaceVariant,
+                ),
+            )
+            Text(
+                text = "Remember me",
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurface,
+            )
+        }
+        TextButton(
+            onClick = onForgotPasswordTap,
+            modifier = Modifier.semantics { contentDescription = "Reset password" },
+        ) {
+            Text(
+                text = "Forgot password ?",
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.primary,
+            )
+        }
+    }
+}
+
+/** Error message — amber, gated behind reduce-motion. */
+@Composable
+private fun ErrorMessage(errorMessage: String?, reduceMotion: Boolean) {
+    AnimatedVisibility(
+        visible = errorMessage != null,
+        enter = if (reduceMotion) fadeIn(tween(0)) else fadeIn(tween(200)),
+        exit = if (reduceMotion) fadeOut(tween(0)) else fadeOut(tween(150)),
+    ) {
+        Text(
+            text = errorMessage.orEmpty(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = NeuroPulseTheme.colors.signal,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Blue "Continue" button — matches Figma (#1e85f7, shadow, full width). */
+@Composable
+private fun ContinueButton(
+    onEmailSignIn: () -> Unit,
+    isLoading: Boolean,
+    fields: LoginFields,
+) {
     val spacing = NeuroPulseTheme.spacing
 
     Button(
-        onClick  = onClick,
-        enabled  = !isLoading,
-        colors   = ButtonDefaults.buttonColors(
-            containerColor = colors.primary,
-            contentColor   = colors.onPrimary,
+        onClick = onEmailSignIn,
+        enabled = !isLoading && fields.email.isNotBlank() && fields.password.isNotBlank(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = FigmaContinueBlue,
+            contentColor = Color.White,
         ),
-        modifier = modifier
+        shape = RoundedCornerShape(spacing.cornerRadiusSmall / 2),
+        modifier = Modifier
+            .fillMaxWidth()
             .height(spacing.touchTarget)
-            .semantics { contentDescription = "Sign in with Google" },
+            .shadow(4.dp, RoundedCornerShape(spacing.cornerRadiusSmall / 2))
+            .semantics { contentDescription = "Continue to sign in" },
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color    = colors.onPrimary,
-                modifier = Modifier.size(20.dp),
+                color = Color.White,
+                modifier = Modifier.size(spacing.globalPadding / 1.2f),
             )
         } else {
-            Text("Continue with Google")
+            Text("Continue")
         }
     }
 }
 
-/**
- * OrDivider — two [HorizontalDivider] lines with a centred "or" label.
- *
- * Extracted to keep [LoginScreen] under 30 lines per function (CLAUDE.md).
- * Divider color uses [com.neuropulse.ui.theme.NeuroPulseColors.outline] for subtlety.
- */
+/** "Or continue with:" text — matches Figma centered divider text. */
 @Composable
-private fun OrDivider() {
-    val colors  = NeuroPulseTheme.colors
-    val spacing = NeuroPulseTheme.spacing
+private fun OrContinueWithText() {
+    Text(
+        text = "Or continue with:",
+        style = MaterialTheme.typography.labelSmall,
+        color = NeuroPulseTheme.colors.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
 
-    Row(
-        modifier            = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight(),
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.elementBufferCompact),
+/** Stacked social auth buttons — Google, Github, Microsoft, Apple pill-shaped. */
+@Composable
+private fun SocialButtonsColumn(
+    isLoading: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onOAuthSignIn: (String) -> Unit,
+) {
+    val spacing = NeuroPulseTheme.spacing
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.sectionSpacing),
+        verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        HorizontalDivider(
-            modifier  = Modifier.weight(1f),
-            color     = colors.outline,
-        )
+        SocialPillButton("Google", onGoogleSignIn, isLoading)
+        SocialPillButton("Github", { onOAuthSignIn("github.com") }, isLoading)
+        SocialPillButton("Microsoft", { onOAuthSignIn("microsoft.com") }, isLoading)
+        SocialPillButton("Apple", { onOAuthSignIn("apple.com") }, isLoading)
+    }
+}
+
+/** Single pill-shaped social button — matches Figma rounded-25px border. */
+@Composable
+private fun SocialPillButton(
+    label: String,
+    onClick: () -> Unit,
+    isLoading: Boolean,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = !isLoading,
+        shape = RoundedCornerShape(25.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(NeuroPulseTheme.spacing.touchTarget)
+            .semantics { contentDescription = "Sign in with $label" },
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** "Can't log in?" link — matches Figma centered text. */
+@Composable
+private fun CantLogInLink(onContinueAsGuest: () -> Unit) {
+    TextButton(
+        onClick = onContinueAsGuest,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Get help signing in or try as guest" },
+    ) {
         Text(
-            text  = "or",
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.onSurfaceVariant,
-        )
-        HorizontalDivider(
-            modifier  = Modifier.weight(1f),
-            color     = colors.outline,
+            text = "Can't log in ?",
+            style = MaterialTheme.typography.bodySmall,
+            color = NeuroPulseTheme.colors.onSurfaceVariant,
         )
     }
 }
 
-/**
- * SsoButton — a single secondary sign-in option for Yahoo, Microsoft, or Apple (DD-012).
- *
- * [OutlinedButton] rather than filled [Button] — the secondary visual weight signals
- * "alternative option" without competing with the primary Google CTA (ADR-005).
- * Disabled during any loading state to prevent concurrent auth requests.
- *
- * @param label      Human-readable button label (e.g. "Continue with Yahoo").
- * @param providerId Firebase OAuth provider ID passed to [onSignIn].
- * @param isLoading  Disables the button while any auth operation is in progress.
- * @param onSignIn   Callback that receives [providerId] to start the OAuth flow.
- */
+/** "Create Account" outlined button — matches Figma blue border button at bottom. */
 @Composable
-private fun SsoButton(
-    label: String,
-    providerId: String,
-    isLoading: Boolean,
-    onSignIn: (String) -> Unit,
-) {
+private fun CreateAccountButton(onNavigateToSignUp: () -> Unit) {
+    val colors = NeuroPulseTheme.colors
     val spacing = NeuroPulseTheme.spacing
+
     OutlinedButton(
-        onClick  = { onSignIn(providerId) },
-        enabled  = !isLoading,
+        onClick = onNavigateToSignUp,
+        shape = RoundedCornerShape(spacing.cornerRadiusSmall / 2),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onSurface),
         modifier = Modifier
             .fillMaxWidth()
             .height(spacing.touchTarget)
-            .semantics { contentDescription = label },
+            .shadow(4.dp, RoundedCornerShape(spacing.cornerRadiusSmall / 2))
+            .semantics { contentDescription = "Create a new account" },
     ) {
-        Text(label)
+        Text("Create Account", style = MaterialTheme.typography.bodyMedium)
     }
 }
 
-/**
- * Returns the enter transition for the progressive password field disclosure.
- *
- * When [reduceMotion] is true, collapses to instant fade (no slide) to respect
- * vestibular sensitivity while still revealing the field (WCAG 2.3.3).
- */
-private fun passwordRevealEnter(reduceMotion: Boolean): EnterTransition =
-    if (reduceMotion) {
-        fadeIn(tween(0))
-    } else {
-        fadeIn(tween(200)) + slideInVertically(tween(300)) { it / 2 }
-    }
+// ── ForgotPasswordDialog ────────────────────────────────────────────────────
 
 /**
  * ForgotPasswordDialog — modal for password reset flow (E-002).
  *
- * Shows a single email input field and sends a reset link when submitted.
- * Auto-closes after 2 seconds on success (as controlled by LoginViewModel).
- * On error, shows a failure message inline and keeps dialog open.
- *
- * @param uiState  Current [ForgotPasswordState] — controls loading/success/error states.
- * @param onSubmit Callback with email address to send the reset link.
- * @param onDismiss Closes the dialog (triggered by cancel or auto-close on success).
+ * Shows a single email input and sends a reset link when submitted.
+ * Auto-closes after 2 seconds on success. On error, shows failure inline.
  */
 @Composable
 fun ForgotPasswordDialog(
@@ -429,8 +459,8 @@ fun ForgotPasswordDialog(
     onSubmit: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val spacing  = NeuroPulseTheme.spacing
-    val colors   = NeuroPulseTheme.colors
+    val spacing = NeuroPulseTheme.spacing
+    val colors = NeuroPulseTheme.colors
     var email by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -439,71 +469,59 @@ fun ForgotPasswordDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.elementBuffer)) {
                 Text(
-                    text  = "Enter your email address and we'll send you a reset link.",
+                    text = "Enter your email address and we'll send you a reset link.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant,
                 )
-
                 when (uiState) {
                     ForgotPasswordState.Loading -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
                     ForgotPasswordState.Success -> {
-                        Text(
-                            text  = "✓ Reset link sent! Check your email.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.primary,
-                        )
+                        Text("Reset link sent! Check your email.", style = MaterialTheme.typography.bodyMedium, color = colors.primary)
                     }
                     is ForgotPasswordState.Error -> {
-                        Text(
-                            text  = uiState.message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.signal,
-                        )
+                        Text(uiState.message, style = MaterialTheme.typography.bodySmall, color = colors.signal)
                     }
                     ForgotPasswordState.Idle -> {}
                 }
-
                 OutlinedTextField(
-                    value         = email,
+                    value = email,
                     onValueChange = { email = it },
-                    label         = { Text("Email address") },
-                    singleLine    = true,
-                    enabled       = uiState is ForgotPasswordState.Idle || uiState is ForgotPasswordState.Error,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Send,
-                    ),
-                    modifier      = Modifier.fillMaxWidth(),
+                    label = { Text("Email address") },
+                    singleLine = true,
+                    enabled = uiState is ForgotPasswordState.Idle || uiState is ForgotPasswordState.Error,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
         confirmButton = {
-            Button(
-                onClick  = { onSubmit(email) },
-                enabled  = email.isNotBlank() && uiState !is ForgotPasswordState.Loading,
-            ) {
+            Button(onClick = { onSubmit(email) }, enabled = email.isNotBlank() && uiState !is ForgotPasswordState.Loading) {
                 Text("Send reset link")
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = uiState !is ForgotPasswordState.Loading,
-            ) {
+            TextButton(onClick = onDismiss, enabled = uiState !is ForgotPasswordState.Loading) {
                 Text("Cancel")
             }
         },
     )
 }
 
-// ── Previews ──────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+private data class LoginFields(val email: String, val password: String)
+
+private fun extractLoginFields(state: LoginUiState): LoginFields = when (state) {
+    is LoginUiState.Idle -> LoginFields(state.email, state.password)
+    is LoginUiState.Error -> LoginFields(state.email, state.password)
+    else -> LoginFields("", "")
+}
+
+// ── Previews ────────────────────────────────────────────────────────────────
 
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Login — Light — Idle")
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Login — Dark — Idle")
@@ -511,55 +529,41 @@ fun ForgotPasswordDialog(
 private fun LoginScreenIdlePreview() {
     NeuroPulseTheme {
         LoginScreen(
-            uiState             = LoginUiState.Idle(),
-            onGoogleSignIn      = {},
-            onEmailChange       = {},
-            onPasswordChange    = {},
-            onEmailSignIn       = {},
-            onForgotPasswordTap = {},
-            onNavigateToSignUp  = {},
-            onContinueAsGuest   = {},
-            onOAuthSignIn       = {},
+            uiState = LoginUiState.Idle(),
+            onGoogleSignIn = {}, onEmailChange = {}, onPasswordChange = {},
+            onEmailSignIn = {}, onForgotPasswordTap = {}, onNavigateToSignUp = {},
+            onContinueAsGuest = {}, onOAuthSignIn = { _ -> },
         )
     }
 }
 
-@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Login — Light — Email entered")
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Login — Light — Filled")
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Login — Dark — Filled")
 @Composable
-private fun LoginScreenPasswordRevealedPreview() {
+private fun LoginScreenFilledPreview() {
     NeuroPulseTheme {
         LoginScreen(
-            uiState             = LoginUiState.Idle(email = "aathira@example.com"),
-            onGoogleSignIn      = {},
-            onEmailChange       = {},
-            onPasswordChange    = {},
-            onEmailSignIn       = {},
-            onForgotPasswordTap = {},
-            onNavigateToSignUp  = {},
-            onContinueAsGuest   = {},
-            onOAuthSignIn       = {},
+            uiState = LoginUiState.Idle(email = "aathira@example.com", password = "mypassword"),
+            onGoogleSignIn = {}, onEmailChange = {}, onPasswordChange = {},
+            onEmailSignIn = {}, onForgotPasswordTap = {}, onNavigateToSignUp = {},
+            onContinueAsGuest = {}, onOAuthSignIn = { _ -> },
         )
     }
 }
 
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO, name = "Login — Light — Error")
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Login — Dark — Error")
 @Composable
 private fun LoginScreenErrorPreview() {
     NeuroPulseTheme {
         LoginScreen(
-            uiState             = LoginUiState.Error(
+            uiState = LoginUiState.Error(
                 userMessage = "Check your email address or password and try again",
-                email       = "aathira@example.com",
-                password    = "wrongpass",
+                email = "aathira@example.com", password = "wrongpass",
             ),
-            onGoogleSignIn      = {},
-            onEmailChange       = {},
-            onPasswordChange    = {},
-            onEmailSignIn       = {},
-            onForgotPasswordTap = {},
-            onNavigateToSignUp  = {},
-            onContinueAsGuest   = {},
-            onOAuthSignIn       = {},
+            onGoogleSignIn = {}, onEmailChange = {}, onPasswordChange = {},
+            onEmailSignIn = {}, onForgotPasswordTap = {}, onNavigateToSignUp = {},
+            onContinueAsGuest = {}, onOAuthSignIn = { _ -> },
         )
     }
 }
@@ -569,15 +573,10 @@ private fun LoginScreenErrorPreview() {
 private fun LoginScreenLoadingPreview() {
     NeuroPulseTheme {
         LoginScreen(
-            uiState             = LoginUiState.Loading,
-            onGoogleSignIn      = {},
-            onEmailChange       = {},
-            onPasswordChange    = {},
-            onEmailSignIn       = {},
-            onForgotPasswordTap = {},
-            onNavigateToSignUp  = {},
-            onContinueAsGuest   = {},
-            onOAuthSignIn       = {},
+            uiState = LoginUiState.Loading,
+            onGoogleSignIn = {}, onEmailChange = {}, onPasswordChange = {},
+            onEmailSignIn = {}, onForgotPasswordTap = {}, onNavigateToSignUp = {},
+            onContinueAsGuest = {}, onOAuthSignIn = { _ -> },
         )
     }
 }

@@ -259,7 +259,10 @@ private fun SplashBackgroundLayers(colors: NeuroPulseColors, overlayAlpha: Float
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.horizontalGradient(colors = listOf(colors.primary, colors.primaryTint)),
+                // Figma gradient (node 2:329): #a480f0 → #2563eb vertical
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFFA480F0), Color(0xFF2563EB)),
+                ),
             ),
     )
     Box(
