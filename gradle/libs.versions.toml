@@ -1,5 +1,5 @@
 [versions]
-agp                    = "8.7.2"
+agp                    = "8.13.2"
 kotlin                 = "2.1.0"
 ksp                    = "2.1.0-1.0.29"
 coreKtx                = "1.15.0"
@@ -28,6 +28,8 @@ junit5                 = "5.10.2"
 mockk                  = "1.13.12"
 espresso               = "3.6.1"
 testExtJunit           = "1.2.1"
+firebaseAuth = "24.0.1"
+credentialsPlayServicesAuth = "1.5.0"
 
 [libraries]
 # AndroidX core
@@ -106,6 +108,8 @@ junit5-engine    = { group = "org.junit.jupiter",        name = "junit-jupiter-e
 mockk            = { group = "io.mockk",                 name = "mockk",               version.ref = "mockk" }
 espresso-core    = { group = "androidx.test.espresso",   name = "espresso-core",       version.ref = "espresso" }
 test-ext-junit   = { group = "androidx.test.ext",        name = "junit",               version.ref = "testExtJunit" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
+androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
 
 [plugins]
 android-application = { id = "com.android.application",             version.ref = "agp" }

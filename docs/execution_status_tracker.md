@@ -2,7 +2,7 @@
 
 **Project:** NeuroPulse — A Neuroadaptive Companion for Adults Living with ADHD
 **Student:** Aathira T Dev (S21161041) | BCU CMP6213
-**Last Updated:** 9 Apr 2026
+**Last Updated:** 10 Apr 2026
 
 ---
 
@@ -244,3 +244,4 @@
 | 7 Apr 2026 | Claude | Setup guide rewritten for Android Studio Panda 3 | README.md, local.properties.template, google-services plugin, projectplan.md updated |
 | 9 Apr 2026 | Claude | Create Account screen built from Figma design | CreateAccountScreen.kt, CreateAccountViewModel.kt, CreateAccountUiState.kt, NavDestinations.kt, NeuroPulseNavGraph.kt, LoginScreen.kt updated |
 | 9 Apr 2026 | Claude | Documentation updated for Create Account feature | extension-points.md, design-decisions.md (DD-016, DD-017), errors.md (E-013), execution_status_tracker.md, decision_log.md (D-016) |
+| 10 Apr 2026 | Claude | AGP upgraded 8.7.2 → 8.13.2, Gradle 8.11.1 → 8.13, SKIP_AUTH=false for auth testing | build.gradle.kts, gradle.properties, libs.versions.toml, gradle-wrapper.properties, settings.gradle.kts |

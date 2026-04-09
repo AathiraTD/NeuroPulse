@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // Only apply google-services if the JSON exists, allowing "Quick Start" mode.
@@ -42,7 +43,7 @@ android {
         debug {
             // Allows bypassing Firebase Auth on the emulator during development.
             // Never set true in release — guarded by BuildConfig.SKIP_AUTH check in NavGraph.
-            buildConfigField("Boolean", "SKIP_AUTH", "true")
+            buildConfigField("Boolean", "SKIP_AUTH", "false")
             isDebuggable = true
         }
         release {
@@ -87,6 +88,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials.play.services.auth)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // Navigation
