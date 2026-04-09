@@ -2,7 +2,7 @@
 
 **Project:** NeuroPulse — A Neuroadaptive Companion for Adults Living with ADHD
 **Student:** Aathira T Dev (S21161041) | BCU CMP6213
-**Last Updated:** 6 Apr 2026
+**Last Updated:** 9 Apr 2026
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Phase | Phase Name | Planned Start | Planned End | Actual Start | Actual End | Status | % Complete | Comments |
 |-------|-----------|---------------|-------------|--------------|------------|--------|------------|----------|
-| 1 | Requirements Gathering and Design | 6 Apr 2026 | 17 Apr 2026 | 3 Apr 2026 | | In Progress | 40% | Auth & onboarding (Phase 1b) complete; code review fixes applied 6 Apr |
+| 1 | Requirements Gathering and Design | 6 Apr 2026 | 17 Apr 2026 | 3 Apr 2026 | | In Progress | 55% | Auth & onboarding (Phase 1b) complete; Create Account screen built from Figma 9 Apr |
 | 2 | Development | 20 Apr 2026 | 26 Jun 2026 | | | Not Started | 0% | |
 | 3 | Testing and Quality Assurance | 29 Jun 2026 | 17 Jul 2026 | | | Not Started | 0% | |
 | 4 | Deployment and Launch | 20 Jul 2026 | 31 Jul 2026 | | | Not Started | 0% | |
@@ -26,7 +26,7 @@
 |---------|------|---------------|-------------|--------------|------------|--------|----------|
 | 1.1 | Finalise acceptance criteria for UC1–UC5 | 6 Apr 2026 | 8 Apr 2026 | | | Not Started | |
 | 1.2 | Finalise non-functional requirements (offline-first, GDPR, battery) | 6 Apr 2026 | 8 Apr 2026 | | | Not Started | |
-| 1.3 | High-fidelity UI design — Android screens (Figma) | 13 Apr 2026 | 17 Apr 2026 | | | Not Started | |
+| 1.3 | High-fidelity UI design — Android screens (Figma) | 13 Apr 2026 | 17 Apr 2026 | 9 Apr 2026 | | In Progress | Figma designs accessed via MCP; Create Account screen built from Figma node 2:373 |
 | 1.4 | High-fidelity UI design — Wear OS tiles (Figma) | 13 Apr 2026 | 17 Apr 2026 | | | Not Started | |
 | 1.5 | Room database schema freeze (6-table schema) | 6 Apr 2026 | 9 Apr 2026 | | | Not Started | |
 | 1.6 | API contract definition (Repository + UseCase interfaces) | 6 Apr 2026 | 9 Apr 2026 | 3 Apr 2026 | 5 Apr 2026 | Complete | Auth, UserPreferences, NetworkMonitor interfaces committed (Phase 1b) |
@@ -242,3 +242,5 @@
 | 5 Apr 2026 | Aathira T Dev | Phase 1b auth & onboarding committed | Auth, onboarding, nav graph, biometric lock, persona selection |
 | 6 Apr 2026 | Claude (code review) | Code review fixes applied (12 issues) | Dependency fix, architecture violation, privacy, UX compliance, decomposition |
 | 7 Apr 2026 | Claude | Setup guide rewritten for Android Studio Panda 3 | README.md, local.properties.template, google-services plugin, projectplan.md updated |
+| 9 Apr 2026 | Claude | Create Account screen built from Figma design | CreateAccountScreen.kt, CreateAccountViewModel.kt, CreateAccountUiState.kt, NavDestinations.kt, NeuroPulseNavGraph.kt, LoginScreen.kt updated |
+| 9 Apr 2026 | Claude | Documentation updated for Create Account feature | extension-points.md, design-decisions.md (DD-016, DD-017), errors.md (E-013), execution_status_tracker.md, decision_log.md (D-016) |

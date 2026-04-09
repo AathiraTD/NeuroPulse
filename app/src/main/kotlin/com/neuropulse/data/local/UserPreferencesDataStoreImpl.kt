@@ -42,6 +42,7 @@ class UserPreferencesDataStoreImpl @Inject constructor(
         val KEY_ONBOARDING_COMPLETE        = booleanPreferencesKey("onboarding_complete")
         val KEY_USER_PERSONA               = stringPreferencesKey("user_persona")
         val KEY_HAS_SEEN_SPLASH            = booleanPreferencesKey("has_seen_splash")
+        val KEY_USER_DISPLAY_NAME          = stringPreferencesKey("user_display_name")
         val KEY_BIOMETRIC_ENABLED          = booleanPreferencesKey("biometric_enabled")
         val KEY_BIOMETRIC_PROMPT_SHOWN     = booleanPreferencesKey("biometric_prompt_shown")
     }
@@ -80,6 +81,14 @@ class UserPreferencesDataStoreImpl @Inject constructor(
     override suspend fun setUserPersona(persona: String) {
         context.dataStore.edit { it[KEY_USER_PERSONA] = persona }
         Timber.tag("NeuroPulse").d("UserPrefs: persona set to $persona")
+    }
+
+    override suspend fun getUserDisplayName(): String =
+        context.dataStore.data.first()[KEY_USER_DISPLAY_NAME] ?: ""
+
+    override suspend fun setUserDisplayName(displayName: String) {
+        context.dataStore.edit { it[KEY_USER_DISPLAY_NAME] = displayName }
+        Timber.tag("NeuroPulse").d("UserPrefs: display name saved")
     }
 
     override suspend fun hasSeenSplash(): Boolean =

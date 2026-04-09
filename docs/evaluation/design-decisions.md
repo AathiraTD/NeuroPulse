@@ -320,3 +320,45 @@ the decision to register is informed and the conversion rate is meaningfully hig
 **Trade-off:** Anonymous users who uninstall without linking an account permanently lose
 any data entered. Disclosed in an in-session banner: "Your progress won't be saved until
 you create an account."
+
+---
+
+## DD-016 — Create Account screen: form-based registration with progressive validation
+
+**Date:** 2026-04 | **Phase:** 1b — Auth extension
+**Screen:** CreateAccountScreen
+
+**Decision:** Full registration form with three sections (Personal Details, Sign-in Details,
+Consent) presented on a single scrollable screen. The CREATE ACCOUNT button is disabled
+until all fields are valid and consent is checked. Helper text below the button explains why
+it may be disabled. Social auth alternatives (Google, Github, Microsoft, Apple) in a 2×2
+grid below the form. Password fields include visibility toggles.
+
+**Rationale:** The Figma design (node 2:373) establishes the visual layout. ADHD adaptations
+applied: (1) disabled-state helper text reduces frustration by explaining what's missing —
+ADHD users may not scan back to find the empty field; (2) password visibility toggles reduce
+re-typing anxiety common with working memory deficits; (3) amber error messages (never red)
+for all validation failures; (4) social auth prominently available as a lower-friction
+alternative for users who find form completion overwhelming.
+
+**Clinical reference:** Barkley (2015) — working memory deficits in ADHD impair multi-step
+form completion. Progressive validation feedback (disabled → enabled as fields complete)
+provides micro-dopamine rewards for each field filled, maintaining engagement through the
+full form.
+
+---
+
+## DD-017 — Login screen: Create Account promoted to outlined button
+
+**Date:** 2026-04 | **Phase:** 1b — Auth extension
+**Screen:** LoginScreen
+
+**Decision:** "Create Account" was promoted from a `TextButton` link to an `OutlinedButton`
+at the bottom of the login screen, matching the Figma design (node 2:350). "Can't log in?"
+helper link added above it. Guest path ("Try without signing in") remains as a subtle text
+link below.
+
+**Rationale:** The Figma design shows Create Account as a visually distinct action — an
+outlined button with a border. This is more discoverable than a text link while still
+maintaining the one-primary-CTA rule (Google Sign-In remains the only filled button).
+The visual hierarchy is preserved: filled primary → outlined secondary → text link tertiary.

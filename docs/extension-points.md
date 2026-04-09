@@ -128,6 +128,27 @@ Yahoo, Microsoft, and Apple are already implemented via the shared `signInWithOA
 
 ---
 
+## 7 — Adding a new auth screen (e.g. Create Account, Reset Password)
+
+**Touch these files:**
+
+| File | Change |
+|---|---|
+| `ui/onboarding/` | Create new `XxxScreen.kt` (stateless Composable) + `XxxViewModel.kt` + `XxxUiState.kt` |
+| `ui/navigation/NavDestinations.kt` | Add new route constant |
+| `ui/navigation/NeuroPulseNavGraph.kt` | Add `composable()` destination with ViewModel wiring |
+| `docs/evaluation/design-decisions.md` | Add DD entry for UI/UX decisions |
+| This file | Update entry |
+
+**Do NOT touch:**
+- `AuthRepository.kt` — reuse existing `createAccountWithEmail()`, `signInWithOAuthProvider()`, etc.
+- `LoginViewModel.kt` — new screen gets its own ViewModel
+- `NeuroPulseColors`, `NeuroPulseSpacing`, `NeuroPulseTypography` — use existing tokens
+
+**Recent addition (2026-04):** `CreateAccountScreen.kt` + `CreateAccountViewModel.kt` — full registration form with personal details, email/password, consent, and social auth alternatives. Routes to PERSONA_SELECT on success.
+
+---
+
 ## Current extension-point implementations
 
 | Interface | PoC Implementation | Location |

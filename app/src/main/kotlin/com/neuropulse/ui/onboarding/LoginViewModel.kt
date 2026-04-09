@@ -111,38 +111,12 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             if (!networkMonitor.isOnline()) { handleOffline(); return@launch }
             _uiState.value = LoginUiState.Loading
-            authRepository.signInWithEmail(current.email, current.password)
+            authRepository.signInWithEmail(current.email.trim(), current.password)
                 .onSuccess { uid -> handleAuthSuccess(uid) }
                 .onFailure { handleAuthFailure(it, current.email, current.password) }
         }
     }
 
-    /**
-     * Initiates new account creation using the current [LoginUiState.Idle] field values.
-     *
-     * Called from the persona selection / sign-up flow (Phase 1b).
-     * No-op if state is not [LoginUiState.Idle].
-     */
-    fun onCreateAccount() {
-        val current = _uiState.value as? LoginUiState.Idle ?: return
-        viewModelScope.launch {
-            if (!networkMonitor.isOnline()) { handleOffline(); return@launch }
-            _uiState.value = LoginUiState.Loading
-            authRepository.createAccountWithEmail(current.email, current.password)
-                .onSuccess { uid -> handleAuthSuccess(uid) }
-                .onFailure { handleAuthFailure(it, current.email, current.password) }
-        }
-    }
-
-    /**
-     * Signs in anonymously for the guest/try-without-account flow (E-005, DD-015).
-     *
-     * Intentionally does NOT call [handleAuthSuccess] — the anonymous UID is never written
-     * to DataStore. When the app is killed and relaunched, [AuthGateViewModel] finds no
-     * cached UID and routes back to LOGIN, which is the correct behaviour for a guest session.
-     *
-     * Network check still applies — Firebase anonymous auth requires a connection.
-     */
     /**
      * Signs in via Yahoo, Microsoft, or Apple OAuth browser-redirect flow (DD-012).
      *
@@ -163,6 +137,15 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Signs in anonymously for the guest/try-without-account flow (E-005, DD-015).
+     *
+     * Intentionally does NOT call [handleAuthSuccess] — the anonymous UID is never written
+     * to DataStore. When the app is killed and relaunched, [AuthGateViewModel] finds no
+     * cached UID and routes back to LOGIN, which is the correct behaviour for a guest session.
+     *
+     * Network check still applies — Firebase anonymous auth requires a connection.
+     */
     fun onContinueAsGuest() {
         viewModelScope.launch {
             if (!networkMonitor.isOnline()) { handleOffline(); return@launch }

@@ -37,6 +37,9 @@ import com.neuropulse.BuildConfig
 import com.neuropulse.ui.home.BiometricLockScreen
 import com.neuropulse.ui.home.BiometricSetupDialog
 import com.neuropulse.ui.home.HomeViewModel
+import com.neuropulse.ui.onboarding.CreateAccountScreen
+import com.neuropulse.ui.onboarding.CreateAccountUiState
+import com.neuropulse.ui.onboarding.CreateAccountViewModel
 import com.neuropulse.ui.onboarding.ForgotPasswordDialog
 import com.neuropulse.ui.onboarding.ForgotPasswordState
 import com.neuropulse.ui.onboarding.LoginScreen
@@ -45,6 +48,7 @@ import com.neuropulse.ui.onboarding.LoginViewModel
 import com.neuropulse.ui.onboarding.PersonaSelectionScreen
 import com.neuropulse.ui.onboarding.PersonaSelectionViewModel
 import com.neuropulse.ui.onboarding.SplashScreen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 // ── Auth gate ViewModel ───────────────────────────────────────────────────────
@@ -155,39 +159,68 @@ fun NeuroPulseNavGraph(
                 uiState            = uiState,
                 onContinueAsGuest  = viewModel::onContinueAsGuest,
                 onGoogleSignIn     = {
-                    scope.launch {
-                        try {
-                            val request = GetCredentialRequest(
-                                listOf(
-                                    GetGoogleIdOption.Builder()
-                                        .setServerClientId(BuildConfig.FIREBASE_WEB_CLIENT_ID)
-                                        .build()
-                                )
-                            )
-                            val result = credentialManager.getCredential(context, request)
-                            val idToken = (result.credential as GoogleIdTokenCredential).idToken
-                            viewModel.onGoogleSignIn(idToken)
-                        } catch (_: GetCredentialCancellationException) {
-                            // User cancelled — no action needed, stay on login screen
-                        } catch (e: GetCredentialException) {
-                            Timber.tag("NeuroPulse").w(e, "Google Sign-In credential error")
-                            viewModel.onGoogleSignIn("")
-                        } catch (e: Exception) {
-                            Timber.tag("NeuroPulse").w(e, "Google Sign-In unexpected error")
-                            viewModel.onGoogleSignIn("")
-                        }
-                    }
+                    launchGoogleOneTap(scope, context, credentialManager, viewModel::onGoogleSignIn)
                 },
                 onEmailChange      = viewModel::onEmailChange,
                 onPasswordChange   = viewModel::onPasswordChange,
                 onEmailSignIn      = viewModel::onEmailSignIn,
                 onForgotPasswordTap = viewModel::onForgotPasswordTap,
                 onNavigateToSignUp = {
-                    navController.navigate(NavDestinations.PERSONA_SELECT)
+                    navController.navigate(NavDestinations.CREATE_ACCOUNT)
                 },
                 onOAuthSignIn = { providerId ->
                     viewModel.onOAuthSignIn(activity, providerId)
                 },
+            )
+        }
+
+        // ── Create Account ───────────────────────────────────────────────────
+        composable(NavDestinations.CREATE_ACCOUNT) {
+            val viewModel: CreateAccountViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val isFormValid by viewModel.isFormValid.collectAsStateWithLifecycle()
+
+            val view = LocalView.current
+            val context = LocalContext.current
+            val activity = context as androidx.fragment.app.FragmentActivity
+            val scope = rememberCoroutineScope()
+            val credentialManager = remember { CredentialManager.create(context) }
+
+            // Consume Success state and navigate — check onboarding for social auth returning users (I-5)
+            LaunchedEffect(uiState) {
+                if (uiState is CreateAccountUiState.Success) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    } else {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    }
+                    viewModel.onSuccessConsumed()
+                    val destination = resolvePostCreateAccountDestination(viewModel)
+                    navController.navigate(destination) {
+                        popUpTo(NavDestinations.CREATE_ACCOUNT) { inclusive = true }
+                    }
+                }
+            }
+
+            CreateAccountScreen(
+                uiState = uiState,
+                onFirstNameChange = viewModel::onFirstNameChange,
+                onLastNameChange = viewModel::onLastNameChange,
+                onEmailChange = viewModel::onEmailChange,
+                onPasswordChange = viewModel::onPasswordChange,
+                onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                onConsentToggle = viewModel::onConsentToggle,
+                onCreateAccount = viewModel::onCreateAccount,
+                onGoogleSignIn = {
+                    launchGoogleOneTap(scope, context, credentialManager, viewModel::onGoogleSignIn)
+                },
+                onOAuthSignIn = { providerId ->
+                    viewModel.onOAuthSignIn(activity, providerId)
+                },
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                isFormValid = isFormValid,
             )
         }
 
@@ -285,3 +318,50 @@ fun NeuroPulseNavGraph(
  */
 private suspend fun resolvePostLoginDestination(viewModel: LoginViewModel): String =
     if (viewModel.isOnboardingComplete()) NavDestinations.HOME else NavDestinations.PERSONA_SELECT
+
+/**
+ * Determines where to navigate after successful account creation (I-5 fix).
+ *
+ * Social auth on the Create Account screen can authenticate a returning user whose
+ * onboarding is already complete. In that case, routes directly to HOME.
+ * New accounts (email/password or first-time social) always go to PERSONA_SELECT.
+ */
+private suspend fun resolvePostCreateAccountDestination(viewModel: CreateAccountViewModel): String =
+    if (viewModel.isOnboardingComplete()) NavDestinations.HOME else NavDestinations.PERSONA_SELECT
+
+/**
+ * Launches Google One-Tap via CredentialManager and passes the ID token to [onToken].
+ *
+ * Extracted to eliminate duplicate code between the Login and Create Account destinations (I-7 fix).
+ * User cancellation is silently ignored. Credential errors are logged and forwarded
+ * as an empty token so the ViewModel can surface an error state.
+ */
+private fun launchGoogleOneTap(
+    scope: CoroutineScope,
+    context: android.content.Context,
+    credentialManager: CredentialManager,
+    onToken: (String) -> Unit,
+) {
+    scope.launch {
+        try {
+            val request = GetCredentialRequest(
+                listOf(
+                    GetGoogleIdOption.Builder()
+                        .setServerClientId(BuildConfig.FIREBASE_WEB_CLIENT_ID)
+                        .build()
+                )
+            )
+            val result = credentialManager.getCredential(context, request)
+            val idToken = (result.credential as GoogleIdTokenCredential).idToken
+            onToken(idToken)
+        } catch (_: GetCredentialCancellationException) {
+            // User cancelled — no action needed
+        } catch (e: GetCredentialException) {
+            Timber.tag("NeuroPulse").w(e, "Google Sign-In credential error")
+            onToken("")
+        } catch (e: Exception) {
+            Timber.tag("NeuroPulse").w(e, "Google Sign-In unexpected error")
+            onToken("")
+        }
+    }
+}

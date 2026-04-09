@@ -539,6 +539,57 @@ Button(
 
 **Status:** Fixed (code review, 2026-04-06)
 
+## E-013 — isFormValid() not reactive in Error state — Create Account button permanently disabled
+
+**Date:** 2026-04 | **Phase:** 1b — Auth extension
+**File:** [`ui/onboarding/CreateAccountViewModel.kt`](../app/src/main/kotlin/com/neuropulse/ui/onboarding/CreateAccountViewModel.kt), [`ui/navigation/NeuroPulseNavGraph.kt`](../app/src/main/kotlin/com/neuropulse/ui/navigation/NeuroPulseNavGraph.kt)
+
+**Symptom:** After a failed account creation attempt (e.g. network error), the CREATE ACCOUNT button remains disabled even when all form fields are valid and consent is checked. The user must type a character in any field to escape the Error state.
+
+**Root cause:** `isFormValid()` was a plain synchronous function that read `_uiState.value` and checked only the `Idle` subclass. When state was `Error` (which also carries all field values), `currentIdle()` returned null and `isFormValid()` returned `false`. The NavGraph passed this as `isFormValid = viewModel.isFormValid()` — a non-reactive snapshot.
+
+**Fix:** Replaced with a reactive `StateFlow<Boolean>` derived from `_uiState` via `.map {}`. The map handles both `Idle` and `Error` states by extracting field values from either. NavGraph collects it via `collectAsStateWithLifecycle()`.
+
+**Before (broken):**
+```kotlin
+// CreateAccountViewModel.kt
+fun isFormValid(): Boolean {
+    val idle = currentIdle() ?: return false  // null in Error state!
+    return validateForm(idle) == null
+}
+
+// NeuroPulseNavGraph.kt
+isFormValid = viewModel.isFormValid(),  // snapshot, not reactive
+```
+
+**After (fixed):**
+```kotlin
+// CreateAccountViewModel.kt
+val isFormValid: StateFlow<Boolean> = _uiState
+    .map { state ->
+        val idle = when (state) {
+            is CreateAccountUiState.Idle -> state
+            is CreateAccountUiState.Error -> CreateAccountUiState.Idle(
+                firstName = state.firstName, lastName = state.lastName,
+                email = state.email, password = state.password,
+                confirmPassword = state.confirmPassword, consentChecked = state.consentChecked,
+            )
+            else -> return@map false
+        }
+        validateForm(idle) == null
+    }
+    .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+// NeuroPulseNavGraph.kt
+val isFormValid by viewModel.isFormValid.collectAsStateWithLifecycle()
+```
+
+**Learning:** StateFlow-derived properties must handle ALL sealed subclasses that carry data, not just the "happy path" Idle state. When two sealed subclasses share the same field shape (Idle and Error both carry form values), validation logic must account for both. Prefer reactive `StateFlow` over synchronous getters for any value consumed by Compose.
+
+**Status:** Fixed (caught during code review, 2026-04-09)
+
+---
+
 <!-- Example structure:
 
 ## E-001 — [Short bug title]

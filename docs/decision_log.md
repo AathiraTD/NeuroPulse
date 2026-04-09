@@ -2,7 +2,7 @@
 
 **Project:** NeuroPulse — A Neuroadaptive Companion for Adults Living with ADHD
 **Student:** Aathira T Dev (S21161041) | BCU CMP6213
-**Last Updated:** _(update this field whenever a new decision is added)_
+**Last Updated:** 9 Apr 2026
 
 > This log captures significant design and implementation decisions made during the NeuroPulse project. Each entry records the options considered, their trade-offs, the final decision, and the rationale. Routine implementation choices not involving meaningful trade-offs are excluded.
 
@@ -27,6 +27,7 @@
 | D-013 | GDPR compliance strategy — on-device vs. cloud data | Design | Mar 2026 | Decided |
 | D-014 | Agent pipeline pattern — Pipe & Filter vs. monolithic service | Design | Mar 2026 | Decided |
 | D-015 | Hyperfocus detection signal — stillness + HR vs. app usage time | Design | Mar 2026 | Decided |
+| D-016 | Create Account screen — Figma-driven form vs. inline login toggle | Implementation | Apr 2026 | Decided |
 
 ---
 
@@ -405,6 +406,31 @@
 **Decision:** **Extended stillness (accelerometer via Sensor Bridge) + HR correlation** as the hyperfocus detection signal. **Calendar suppression** via `DayPlanRepository.getUpcomingEvents()` prevents alert during scheduled meetings. **Penalty scoring** via `briefing_log.user_acknowledged` and `getPenaltyScores()` penalises captures contributing to dismissed briefings over time.
 
 **Rationale:** The wearable accelerometer + HR combination is the only passive, wearable-native signal available without additional permissions. Calendar suppression handles the primary false positive scenario (meetings). The penalty scoring mechanism enables the system to learn which contexts produce valid vs. invalid hyperfocus detections over time, reducing false positives without requiring a training loop.
+
+---
+
+### D-016 — Create Account Screen — Figma-Driven Form vs. Inline Login Toggle
+
+**Date:** Apr 2026 | **Phase:** Implementation (Phase 1b) | **Status:** Decided
+
+**Context:** The Figma design (node 2:373) specifies a full registration form with personal details (first/last name), sign-in details (email, password, confirm), consent checkbox, and social auth. The existing codebase has `LoginViewModel.onCreateAccount()` that calls `AuthRepository.createAccountWithEmail()` with just email and password. Two approaches were considered for implementing the registration flow.
+
+**Options Considered**
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **Dedicated CreateAccountScreen (separate composable + ViewModel)** | Full-page registration form matching Figma design, with its own ViewModel, UiState, and NavGraph destination | Matches Figma design; clean separation of concerns; own validation logic; doesn't bloat LoginScreen; future-proof for profile data | More files (3 new); duplicates some Google/OAuth wiring in NavGraph |
+| **Inline toggle on LoginScreen** | "Sign in / Create account" tab toggle on LoginScreen, shared ViewModel | Fewer files; shared state; single composable | LoginScreen grows past 30-line rule; mixes sign-in and registration validation; Figma design shows a separate page; harder to add personal details fields |
+
+**Trade-offs**
+- The Figma design clearly shows Create Account as a separate full-page screen, not a tab toggle. Following the design reduces interpretation risk.
+- LoginScreen is already at ~400 lines. Adding registration fields and consent logic would require significant decomposition or exceed the 30-line function rule.
+- A separate ViewModel enables dedicated form validation (first name, last name, password confirmation, consent) without polluting the login state machine.
+- OAuth/Google wiring duplication in the NavGraph is acceptable — both destinations use the same Firebase backend, but the post-success routing differs (login → HOME or PERSONA_SELECT; registration → PERSONA_SELECT always).
+
+**Decision:** **Dedicated CreateAccountScreen** with its own `CreateAccountViewModel` and `CreateAccountUiState` as a separate NavGraph destination (`CREATE_ACCOUNT`).
+
+**Rationale:** Matches the Figma design intent, keeps LoginScreen focused on its existing responsibility, and enables dedicated form validation logic. The Create Account flow routes to PERSONA_SELECT on success (new users always need persona selection), while login routes conditionally based on onboarding completion. This routing difference justifies separate ViewModels. The `AuthRepository` interface is reused without modification — `createAccountWithEmail()` and `signInWithOAuthProvider()` are already provider-agnostic.
 
 ---
 

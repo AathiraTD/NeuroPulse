@@ -39,7 +39,7 @@ NeuroPulse - Mobile App/
 │       │   └── di/             Hilt modules
 │       └── ui/                 Jetpack Compose screens + ViewModels
 │           ├── theme/          NeuroPulseTheme, Colors, Typography, Spacing
-│           ├── onboarding/     Phase 1
+│           ├── onboarding/     Phase 1 (Login, CreateAccount, PersonaSelection, Splash)
 │           ├── morning/        Phase 2
 │           ├── briefing/       Phase 4
 │           └── capture/        Phase 4

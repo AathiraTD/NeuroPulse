@@ -33,6 +33,12 @@ interface UserPreferencesRepository {
     /** Persists the selected persona. Use [UserPreferences.PERSONA_MARCUS] / [UserPreferences.PERSONA_ZOE]. */
     suspend fun setUserPersona(persona: String)
 
+    /** Returns the user's display name, or empty string if not set. */
+    suspend fun getUserDisplayName(): String
+
+    /** Persists the user's display name (first + last) after account creation. */
+    suspend fun setUserDisplayName(displayName: String)
+
     /** Returns true if the animated splash has been shown at least once. */
     suspend fun hasSeenSplash(): Boolean
 

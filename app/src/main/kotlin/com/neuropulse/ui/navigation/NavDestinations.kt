@@ -28,6 +28,13 @@ object NavDestinations {
     const val BIOMETRIC_LOCK = "biometric_lock"
 
     /**
+     * Create account / registration screen.
+     * Full registration form with personal details, sign-in details, consent,
+     * and social auth alternatives. Navigated to from LOGIN via "Create Account" link.
+     */
+    const val CREATE_ACCOUNT = "create_account"
+
+    /**
      * Home / morning plan screen — Phase 2.
      * Authenticated + onboarded users land here.
      * Currently a placeholder stub until Phase 2 implementation.

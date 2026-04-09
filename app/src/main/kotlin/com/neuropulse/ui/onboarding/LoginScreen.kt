@@ -247,21 +247,35 @@ fun LoginScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // Sign-up link — text only, not a CTA (one-CTA rule, ADR-005)
+            // "Can't log in?" link — matches Figma design
             TextButton(
-                onClick  = onNavigateToSignUp,
+                onClick  = onForgotPasswordTap,
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .semantics { contentDescription = "Create a new account" },
+                    .semantics { contentDescription = "Get help signing in" },
             ) {
                 Text(
-                    text  = "First time here? Set up your account",
+                    text  = "Can't log in?",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = NeuroPulseTheme.colors.primary,
+                    color = NeuroPulseTheme.colors.onSurfaceVariant,
                 )
             }
 
-            // Guest path — visually de-emphasised so it doesn't compete with sign-up (E-005)
+            // Create Account button — outlined, prominent (matches Figma node 2:350)
+            OutlinedButton(
+                onClick  = onNavigateToSignUp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(spacing.touchTarget)
+                    .semantics { contentDescription = "Create a new account" },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = NeuroPulseTheme.colors.onSurface,
+                ),
+            ) {
+                Text("Create Account")
+            }
+
+            // Guest path — visually de-emphasised so it doesn't compete (E-005)
             TextButton(
                 onClick  = onContinueAsGuest,
                 enabled  = !isLoading,
